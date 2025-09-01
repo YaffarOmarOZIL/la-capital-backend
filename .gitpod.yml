@@ -1,0 +1,7 @@
+tasks:
+  - init: npm install # Comando que se ejecuta la primera vez para instalar dependencias.
+  - command: npm run dev # Comando que se ejecuta cada vez que abres el entorno para iniciar tu servidor.
+
+ports:
+  - port: 3001
+    onOpen: open-preview # Le decimos a Gitpod que abra una vista previa del puerto 3001
