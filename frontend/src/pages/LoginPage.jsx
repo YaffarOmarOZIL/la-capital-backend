@@ -15,22 +15,20 @@ function LoginPage() {
   }, []);
 
   const handleLogin = async (e) => {
-    e.preventDefault();
-    setError('');
+  e.preventDefault();
+  setError('');
 
-    try {
+  try {
       const backendUrl = `${import.meta.env.VITE_API_BASE_URL}/api/auth/login`;
-
-      console.log('Intentando conectar con:', backendUrl); 
-
-      const response = await axios.post(backendUrl, { email, password });
+      console.log('Intentando conectar con:', backendUrl); // Para depurar
       
+      const response = await axios.post(backendUrl, { email, password }); 
+
       localStorage.setItem('authToken', response.data.token);
       navigate('/dashboard');
-
     } catch (err) {
       console.error('Error durante el login:', err);
-      setError('Credenciales inválidas o error de conexión con el servidor.');
+      setError('Credenciales inválidas o error de conexión.');
     }
   };
 
