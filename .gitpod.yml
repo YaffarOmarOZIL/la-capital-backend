@@ -1,7 +1,17 @@
 tasks:
-  - init: npm install # Comando que se ejecuta la primera vez para instalar dependencias.
-  - command: npm run dev # Comando que se ejecuta cada vez que abres el entorno para iniciar tu servidor.
+  - name: Backend
+    before: |
+      cd la_capital_fidelizacion # O el nombre de tu carpeta de backend
+      npm install
+    command: npm run dev
+  - name: Frontend
+    before: |
+      cd frontend
+      npm install
+    command: npm run dev
 
 ports:
-  - port: 3001
-    onOpen: open-preview # Le decimos a Gitpod que abra una vista previa del puerto 3001
+  - port: 3001 # Backend
+    onOpen: ignore
+  - port: 5173 # Frontend (el puerto por defecto de Vite)
+    onOpen: open-preview
