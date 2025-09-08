@@ -1,8 +1,6 @@
 tasks:
   - name: Backend
-    before: |
-      cd la_capital_fidelizacion # O el nombre de tu carpeta de backend
-      npm install
+    before: npm install
     command: npm run dev
   - name: Frontend
     before: |
