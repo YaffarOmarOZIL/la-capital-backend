@@ -1,21 +1,22 @@
-// Importar el framework Express
 const express = require('express');
-
-// Inicializar la aplicación de Express
+const cors = require('cors');
 const app = express();
-
-// Definir el puerto en el que correrá el servidor
 const PORT = process.env.PORT || 3001;
 
-// ----- Definición de Endpoints (Rutas) -----
-// Este es un endpoint de prueba para la raíz del servidor
+// ----- Middlewares -----
+app.use(express.json());
+app.use(cors());
+
+// ----- Rutas -----
+const authRoutes = require('./authRoutes'); // Importar el archivo de rutas
+
 app.get('/', (req, res) => {
-  res.json({
-    message: '¡Bienvenido a la API del Sistema de Fidelización La Capital!'
-  });
+  res.json({ message: '¡API de La Capital funcionando!' });
 });
 
-// ----- Iniciar el Servidor -----
+// Usar las rutas de autenticación bajo el prefijo /api/auth
+app.use('/api/auth', authRoutes);
+
 app.listen(PORT, () => {
   console.log(`Servidor escuchando en el puerto ${PORT}`);
 });
