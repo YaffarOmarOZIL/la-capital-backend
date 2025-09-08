@@ -17,12 +17,20 @@ function LoginPage() {
   const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
+
     try {
-      const response = await axios.post('http://localhost:3001/api/auth/login', { email, password });
-      localStorage.setItem('authToken', response.data.token); // Guarda el token
+      const backendUrl = `${import.meta.env.VITE_API_BASE_URL}/api/auth/login`;
+
+      console.log('Intentando conectar con:', backendUrl); 
+
+      const response = await axios.post(backendUrl, { email, password });
+      
+      localStorage.setItem('authToken', response.data.token);
       navigate('/dashboard');
+
     } catch (err) {
-      setError('Credenciales inválidas. Por favor, intenta de nuevo.');
+      console.error('Error durante el login:', err);
+      setError('Credenciales inválidas o error de conexión con el servidor.');
     }
   };
 
