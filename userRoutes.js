@@ -3,6 +3,7 @@ const router = express.Router();
 const supabase = require('./supabaseClient');
 const { isAdmin } = require('./authMiddleware'); // ¡Importamos a nuestro guardián!
 const { body, validationResult } = require('express-validator');
+const bcrypt = require('bcryptjs');
 
 // Ruta para obtener TODOS los usuarios (PROTEGIDA)
 // GET /api/users
