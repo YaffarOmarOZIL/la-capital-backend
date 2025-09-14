@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const supabase = require('./supabaseClient');
-const { isAdmin } = require('./authMiddleware'); // ¡Importamos a nuestro guardián!
 const { body, validationResult } = require('express-validator');
 const bcrypt = require('bcryptjs');
+const { isAuthenticated, isAdmin } = require('./authMiddleware');
 
 // Ruta para obtener TODOS los usuarios (PROTEGIDA)
 // GET /api/users
@@ -37,12 +37,64 @@ router.get('/', isAdmin, async (req, res) => {
   }
 });
 
+// --- RUTA PARA OBTENER LOS DATOS DEL USUARIO ACTUAL (PROTEGIDA) ---
+// GET /api/users/me
+router.get('/me', isAuthenticated, async (req, res) => {
+  const userId = req.user.id; // Obtenemos el ID desde el token verificado
+  try {
+    const { data, error } = await supabase
+      .from('Usuarios')
+      .select('nombre_completo, email')
+      .eq('id', userId)
+      .single();
+    if (error) throw error;
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ message: 'Error al obtener los datos del perfil.' });
+  }
+});
+
+// --- RUTA PARA ACTUALIZAR LOS DATOS DEL USUARIO ACTUAL (PROTEGIDA) ---
+// PUT /api/users/me
+router.put('/me', isAuthenticated, 
+  [ // También validamos los datos al actualizar
+    body('nombre_completo', 'El nombre no puede estar vacío').not().isEmpty().trim().escape(),
+    body('email', 'Email inválido').isEmail().normalizeEmail(),
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
+    const userId = req.user.id;
+    const { nombre_completo, email } = req.body;
+
+    try {
+      const { data, error } = await supabase
+        .from('Usuarios')
+        .update({ nombre_completo, email })
+        .eq('id', userId)
+        .select()
+        .single();
+
+      if (error) {
+         // Manejar error de email duplicado
+        if (error.code === '23505') { 
+            return res.status(409).json({ message: 'El nuevo correo electrónico ya está en uso.' });
+        }
+        throw error;
+      }
+      res.json({ message: 'Perfil actualizado con éxito.', user: data });
+    } catch (error) {
+      res.status(500).json({ message: 'Error al actualizar el perfil.' });
+    }
+});
+
 router.post(
   '/', 
   isAdmin,
   // Las validaciones de express-validator se quedan exactamente igual
   [
-    body('nombre_completo', 'El nombre es requerido').not().isEmpty().trim().escape(),
+    body('nombre_completo', 'El nombre es requerido y no debe contener números').not().isEmpty().trim().escape().matches(/^[a-zA-Z\s]+$/),
     body('email', 'Por favor, introduce un email válido').isEmail().normalizeEmail(),
     body('password').isStrongPassword({ minLength: 8, minLowercase: 1, minUppercase: 1, minNumbers: 1, minSymbols: 1, }).withMessage('La contraseña debe tener al menos 8 caracteres...'),
     body('id_rol', 'El rol es requerido').isInt({ min: 1, max: 2 }),

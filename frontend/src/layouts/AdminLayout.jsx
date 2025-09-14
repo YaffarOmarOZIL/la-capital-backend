@@ -4,6 +4,7 @@ import { IconChevronDown, IconUserPlus, IconUsers, IconSun, IconMoonStars, IconL
 import { jwtDecode } from 'jwt-decode';
 import { useEffect, useState } from 'react';
 import logo from '../assets/logo-la-capital-cuadrado.png';
+import { Link } from 'react-router-dom';
 
 // ---- PEQUEÑOS COMPONENTES PARA MANTENER EL CÓDIGO LIMPIO ----
 
@@ -24,7 +25,7 @@ function ProfileMenu({ onLogout }) {
       </Menu.Target>
       <Menu.Dropdown>
         <Menu.Label>Cuenta</Menu.Label>
-        <Menu.Item leftSection={<IconUser size={14} />}>Ver Perfil</Menu.Item>
+        <Menu.Item component={Link} to="/admin/profile" leftSection={<IconUser size={14} />}>Ver Perfil</Menu.Item>
         <Menu.Item leftSection={<IconSettings size={14} />}>Cambiar Contraseña</Menu.Item>
         <Menu.Divider />
         <Menu.Item color="red" leftSection={<IconLogout size={14} />} onClick={onLogout}>

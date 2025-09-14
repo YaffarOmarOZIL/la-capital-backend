@@ -27,4 +27,17 @@ const isAdmin = (req, res, next) => {
   });
 };
 
-module.exports = { isAdmin };
+
+const isAuthenticated = (req, res, next) => { // ¡Nuestro nuevo guardián!
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+    if (token == null) return res.sendStatus(401);
+
+    jwt.verify(token, 'tu_super_secreto_para_el_token', (err, user) => {
+        if (err) return res.sendStatus(403);
+        req.user = user; // Guardamos los datos del token (id, rol)
+        next();
+    });
+};
+
+module.exports = { isAuthenticated, isAdmin };

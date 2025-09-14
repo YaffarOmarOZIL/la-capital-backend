@@ -10,6 +10,7 @@ import ClientHomePage from './pages/ClientHomePage';
 import UserListPage from './pages/UserListPage';
 import UserCreatePage from './pages/UserCreatePage';
 import PrivateRoute from './components/PrivateRoute';
+import ProfilePage from './pages/ProfilePage';
 
 function App() {
   return (
@@ -34,6 +35,7 @@ function App() {
           <Route path="dashboard" element={<DashboardPage />} />
           <Route path="users" element={<UserListPage />} />
           <Route path="users/create" element={<UserCreatePage />} />
+          <Route path="profile" element={<ProfilePage />} />
         </Route>
         
       </Routes>
