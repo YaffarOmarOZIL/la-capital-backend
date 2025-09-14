@@ -10,6 +10,7 @@ app.use(express.json());
 // ----- Rutas -----
 const authRoutes = require('./authRoutes');
 const userRoutes = require('./userRoutes');
+const twoFactorAuthRoutes = require('./twoFactorAuthRoutes');
 
 
 app.get('/', (req, res) => {
@@ -19,6 +20,7 @@ app.get('/', (req, res) => {
 // ------ Rutas que lee Express ----------
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/2fa', twoFactorAuthRoutes);
 
 
 app.listen(PORT, () => {
