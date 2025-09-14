@@ -155,7 +155,18 @@ function ProfilePage() {
       {/* --- SECCIÓN DE 2FA ACTUALIZADA --- */}
         <Title order={3} mt="xl" pt="xl" style={{ borderTop: '1px solid #e0e0e0' }}>Autenticación de Dos Pasos (2FA)</Title>
         <Text c="dimmed">Activa una capa extra de seguridad para tu cuenta usando una app como Google Authenticator.</Text>
-        <Button mt="md" onClick={handleSetup2FA}>Activar 2FA</Button>
+        {/* --- AQUÍ ESTÁ EL FEEDBACK --- */}
+        {formData?.is_two_factor_enabled ? (
+            <Alert color="green" title="2FA Activado">
+                Tu cuenta está protegida con un segundo factor de autenticación.
+                <Button mt="sm" variant="outline" color="red">Desactivar 2FA (Próximamente)</Button>
+            </Alert>
+        ) : (
+            <>
+                <Text c="dimmed">Activa una capa extra de seguridad para tu cuenta.</Text>
+                <Button mt="md" onClick={handleSetup2FA}>Activar 2FA</Button>
+            </>
+        )}
     
         {/* --- EL MODAL DE CONFIGURACIÓN DE 2FA --- */}
         <Modal opened={opened} onClose={close} title="Configurar Autenticación de Dos Pasos" size="lg">

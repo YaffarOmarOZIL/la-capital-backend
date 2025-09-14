@@ -32,42 +32,76 @@ router.post('/register', async (req, res) => {
 // ----- Endpoint para el Login (ACTUALIZADO) -----
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;
-
-  // 1. Buscar al usuario por email en Supabase
-  const { data: users, error } = await supabase
-    .from('Usuarios')
-    .select('*')
-    .eq('email', email);
   
+  const { data: users, error } = await supabase.from('Usuarios').select('*').eq('email', email);
   if (error || !users || users.length === 0) {
     return res.status(401).json({ message: 'Credenciales inválidas' });
   }
 
   const user = users[0];
-
-  // 2. Comparar la contraseña enviada con la hasheada en la BDD
   const isPasswordCorrect = bcrypt.compareSync(password, user.password_hash);
   if (!isPasswordCorrect) {
     return res.status(401).json({ message: 'Credenciales inválidas' });
   }
-  
-  // 3. Crear un token JWT (aquí obtenemos el rol de la BDD)
-  const { data: rolData, error: rolError } = await supabase
-    .from('Roles')
-    .select('nombre_rol')
-    .eq('id', user.id_rol)
-    .single();
-  
-  const userRole = rolError ? 'Desconocido' : rolData.nombre_rol;
 
-  const token = jwt.sign(
-    { id: user.id, role: userRole },
-    'tu_super_secreto_para_el_token',
-    { expiresIn: '1h' }
-  );
+  // --- ¡AQUÍ ESTÁ LA NUEVA LÓGICA! ---
+  if (user.is_two_factor_enabled) {
+    // El usuario tiene 2FA activado. NO le damos el token final.
+    // Le damos un token temporal de "pre-autenticación" que solo sirve para el siguiente paso.
+    const tempToken = jwt.sign(
+        { id: user.id, isPreAuth: true }, // Marcamos que es un token temporal
+        'tu_super_secreto_para_el_token',
+        { expiresIn: '5m' } // Caduca en 5 minutos
+    );
+    res.json({ twoFactorRequired: true, tempToken });
+  } else {
+    // El usuario NO tiene 2FA. Le damos el token final como antes.
+    const { data: rolData } = await supabase.from('Roles').select('nombre_rol').eq('id', user.id_rol).single();
+    const userRole = rolData ? rolData.nombre_rol : 'Empleado';
+    
+    const finalToken = jwt.sign(
+        { id: user.id, role: userRole },
+        'tu_super_secreto_para_el_token',
+        { expiresIn: '13h' } // <-- ¡AQUÍ ESTÁ TU SESIÓN DE 13 HORAS!
+    );
+    res.json({ token: finalToken });
+  }
+});
 
-  // 4. Enviar el token al cliente
-  res.status(200).json({ token });
+const speakeasy = require('speakeasy');
+// --- RUTA PARA VERIFICAR EL CÓDIGO 2FA Y OBTENER EL TOKEN FINAL ---
+router.post('/verify-2fa', async (req, res) => {
+    const { tempToken, twoFactorCode } = req.body;
+    
+    try {
+        const decoded = jwt.verify(tempToken, 'tu_super_secreto_para_el_token');
+        if (!decoded.isPreAuth) throw new Error();
+
+        const { data: user } = await supabase.from('Usuarios').select('*').eq('id', decoded.id).single();
+        if (!user) return res.sendStatus(401);
+        
+        const verified = speakeasy.totp.verify({
+            secret: user.two_factor_secret,
+            encoding: 'base32',
+            token: twoFactorCode
+        });
+
+        if (verified) {
+            const { data: rolData } = await supabase.from('Roles').select('nombre_rol').eq('id', user.id_rol).single();
+            const userRole = rolData ? rolData.nombre_rol : 'Empleado';
+            
+            const finalToken = jwt.sign(
+                { id: user.id, role: userRole },
+                'tu_super_secreto_para_el_token',
+                { expiresIn: '13h' } // <-- ¡Sesión de 13 horas también aquí!
+            );
+            res.json({ token: finalToken });
+        } else {
+            res.status(401).json({ message: 'Código 2FA incorrecto.' });
+        }
+    } catch (error) {
+        res.status(401).json({ message: 'Token temporal inválido o expirado.' });
+    }
 });
 
 module.exports = router;

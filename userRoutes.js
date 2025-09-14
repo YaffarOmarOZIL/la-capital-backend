@@ -44,7 +44,7 @@ router.get('/me', isAuthenticated, async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('Usuarios')
-      .select('nombre_completo, email')
+      .select('nombre_completo, email, is_two_factor_enabled')
       .eq('id', userId)
       .single();
     if (error) throw error;
