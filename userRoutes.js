@@ -143,4 +143,63 @@ router.post(
   }
 );
 
+router.post(
+  '/change-password',
+  isAuthenticated, // ¡Solo usuarios logueados pueden cambiar su propia contraseña!
+  [
+    body('currentPassword', 'La contraseña actual es requerida.').not().isEmpty(),
+    body('newPassword').isStrongPassword({
+      minLength: 8,
+      minLowercase: 1,
+      minUppercase: 1,
+      minNumbers: 1,
+      minSymbols: 1,
+    }).withMessage('La nueva contraseña debe tener al menos 8 caracteres, una mayúscula, una minúscula, un número y un símbolo.'),
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { currentPassword, newPassword } = req.body;
+    const userId = req.user.id; // Obtenemos el ID del token verificado
+
+    try {
+      // 1. Obtener el hash de la contraseña actual del usuario desde la BDD
+      const { data: user, error: fetchError } = await supabase
+        .from('Usuarios')
+        .select('password_hash')
+        .eq('id', userId)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      // 2. Verificar que la contraseña actual sea correcta
+      const isMatch = await bcrypt.compare(currentPassword, user.password_hash);
+      if (!isMatch) {
+        return res.status(401).json({ message: 'La contraseña actual es incorrecta.' });
+      }
+
+      // 3. Hashear la nueva contraseña
+      const salt = await bcrypt.genSalt(10);
+      const newPasswordHash = await bcrypt.hash(newPassword, salt);
+
+      // 4. Actualizar la contraseña en la base de datos
+      const { error: updateError } = await supabase
+        .from('Usuarios')
+        .update({ password_hash: newPasswordHash })
+        .eq('id', userId);
+      
+      if (updateError) throw updateError;
+      
+      res.json({ message: '¡Contraseña actualizada con éxito!' });
+
+    } catch (error) {
+      console.error("Error al cambiar contraseña:", error);
+      res.status(500).json({ message: 'Error interno del servidor.' });
+    }
+  }
+);
+
 module.exports = router;

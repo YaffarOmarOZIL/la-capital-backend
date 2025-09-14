@@ -26,7 +26,7 @@ function ProfileMenu({ onLogout }) {
       <Menu.Dropdown>
         <Menu.Label>Cuenta</Menu.Label>
         <Menu.Item component={Link} to="/admin/profile" leftSection={<IconUser size={14} />}>Ver Perfil</Menu.Item>
-        <Menu.Item leftSection={<IconSettings size={14} />}>Cambiar Contraseña</Menu.Item>
+        <Menu.Item component={Link} to="/admin/change-password" leftSection={<IconSettings size={14} />}>Cambiar Contraseña</Menu.Item>
         <Menu.Divider />
         <Menu.Item color="red" leftSection={<IconLogout size={14} />} onClick={onLogout}>
           Cerrar Sesión
