@@ -13,6 +13,11 @@ function ProfilePage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
+  // Un estado para errores de carga inicial, y otro para errores de *acciones*
+  const [initialLoadError, setInitialLoadError] = useState(''); 
+  const [actionError, setActionError] = useState(''); 
+  const [actionSuccess, setActionSuccess] = useState('');
+
   // --- ESTADO Y LÓGICA PARA 2FA ---
   const [opened, { open, close }] = useDisclosure(false); // Hook para el modal
   const [qrCode, setQrCode] = useState('');
@@ -26,7 +31,7 @@ function ProfilePage() {
       setLoading(true); // Empezamos a cargar
       const token = localStorage.getItem('authToken');
       if (!token) {
-        setError("Error de autenticación. Por favor, inicia sesión de nuevo.");
+        setInitialLoadError("Error de autenticación. Por favor, inicia sesión de nuevo.");
         setLoading(false);
         return;
       }
@@ -36,7 +41,7 @@ function ProfilePage() {
         const response = await axios.get(apiUrl, { headers: { 'Authorization': `Bearer ${token}` } });
         setFormData(response.data); // ¡Guardamos los datos!
       } catch (err) {
-        setError('No se pudieron cargar los datos del perfil desde el servidor.');
+        setInitialLoadError('No se pudieron cargar los datos del perfil desde el servidor.');
       } finally {
         setLoading(false); // Terminamos de cargar, haya éxito o no
       }
@@ -51,6 +56,8 @@ function ProfilePage() {
     e.preventDefault();
     setError('');
     setSuccess('');
+    setUpdateError('');
+    setUpdateSuccess(''); 
     setLoading(true);
     try {
       const token = localStorage.getItem('authToken');
@@ -99,6 +106,21 @@ function ProfilePage() {
     }
   };
 
+  const handleDisable2FA = async () => {
+    if (window.confirm('¿Estás seguro de que quieres desactivar la autenticación de dos pasos?')) {
+      setActionError(''); setActionSuccess(''); setLoading(true);
+      try {
+        const token = localStorage.getItem('authToken');
+        const apiUrl = `${import.meta.env.VITE_API_BASE_URL}/api/2fa/disable`;
+        await axios.post(apiUrl, {}, { headers: { Authorization: `Bearer ${token}` } });
+        alert('¡2FA desactivado con éxito!');
+        window.location.reload();
+      } catch (err) {
+        setActionError(err.response?.data?.message || 'Error al desactivar 2FA.');
+      } finally { setLoading(false); }
+    }
+  };
+
   // ----- ¡LA MAGIA ESTÁ AQUÍ! RENDERIZADO CONDICIONAL -----
 
   // 1. Mientras `loading` sea true, mostramos un spinner
@@ -144,8 +166,8 @@ function ProfilePage() {
         </Stack>
 
         {/* Solo mostramos errores/éxito relacionados a la actualización, no a la carga */}
-        {error && <Alert color="red" title="Error al Actualizar" mt="md">{error}</Alert>}
-        {success && <Alert color="green" title="Éxito" icon={<IconCheck />} mt="md">{success}</Alert>}
+        {actionError && <Alert color="red" title="Error" mt="md">{actionError}</Alert>}
+        {actionSuccess && <Alert color="green" title="Éxito" icon={<IconCheck />} mt="md">{actionSuccess}</Alert>}
         
         <Group justify="flex-end" mt="xl">
           <Button type="submit" loading={loading}>Guardar Cambios</Button>
@@ -158,8 +180,10 @@ function ProfilePage() {
         {/* --- AQUÍ ESTÁ EL FEEDBACK --- */}
         {formData?.is_two_factor_enabled ? (
             <Alert color="green" title="2FA Activado">
-                Tu cuenta está protegida con un segundo factor de autenticación.
-                <Button mt="sm" variant="outline" color="red">Desactivar 2FA (Próximamente)</Button>
+                Tu cuenta está protegida con un segundo factor de autenticación. <br></br>
+                <Button mt="sm" variant="outline" color="red" onClick={handleDisable2FA} loading={loading}>
+              Desactivar 2FA
+            </Button>
             </Alert>
         ) : (
             <>

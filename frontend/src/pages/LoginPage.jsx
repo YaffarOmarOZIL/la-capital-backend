@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom'; // Importa Link
 import axios from 'axios';
 import { TextInput, PasswordInput, Button, Paper, Title, Text, Container, Transition, Group, ActionIcon, useMantineColorScheme,  Modal, PinInput } from '@mantine/core';
 import { IconSun, IconMoonStars } from '@tabler/icons-react'; // Importa los iconos
+import { useDisclosure } from '@mantine/hooks';
 
 function DarkModeToggle() { // Creamos el componente de modo oscuro reutilizable
   const { colorScheme, setColorScheme } = useMantineColorScheme();

@@ -59,4 +59,30 @@ router.post('/verify', isAuthenticated, async (req, res) => {
     }
 });
 
+// --- RUTA 3: Desactivar 2FA para el usuario actual ---
+router.post('/disable', isAuthenticated, async (req, res) => {
+  const userId = req.user.id;
+
+  try {
+    // Actualizamos la base de datos para desactivar 2FA
+    const { error } = await supabase
+      .from('Usuarios')
+      .update({ 
+        is_two_factor_enabled: false, 
+        two_factor_secret: null // ¡MUY IMPORTANTE! Borramos el secreto por seguridad.
+      })
+      .eq('id', userId);
+
+    if (error) {
+      throw error;
+    }
+    
+    res.json({ success: true, message: 'La autenticación de dos pasos ha sido desactivada.' });
+    
+  } catch (error) {
+    console.error('Error al desactivar 2FA:', error);
+    res.status(500).json({ success: false, message: 'No se pudo desactivar la 2FA.' });
+  }
+});
+
 module.exports = router;
