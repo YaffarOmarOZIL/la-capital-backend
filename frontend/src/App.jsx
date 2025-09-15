@@ -15,6 +15,7 @@ import ChangePasswordPage from './pages/ChangePasswordPage';
 import ProductListPage from './pages/ProductListPage';
 import ProductFormPage from './pages/ProductFormPage';
 import ProductAssetPage from './pages/ProductAssetPage';
+import UserEditPage from './pages/UserEditPage';
 
 function App() {
   return (
@@ -45,6 +46,7 @@ function App() {
           <Route path="products/create" element={<ProductFormPage />} />
           <Route path="products/edit/:id" element={<ProductFormPage />} />
           <Route path="products/asset/:id" element={<ProductAssetPage />} />
+          <Route path="edit/:id" element={<UserEditPage />} />
         </Route>
         
       </Routes>

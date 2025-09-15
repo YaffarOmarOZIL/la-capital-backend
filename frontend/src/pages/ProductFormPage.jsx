@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { TextInput, Textarea, NumberInput, Switch, Button, Paper, Title, Group, Stack, Loader, Center, Alert, Text, SegmentedControl, Box } from '@mantine/core';
+import { TextInput, Textarea, NumberInput, Switch, Button, Paper, Title, Group, Stack, Loader, Center, Alert, Text, Chip } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconCheck } from '@tabler/icons-react';
 
@@ -60,15 +60,8 @@ function ProductFormPage() {
   }, [categoriaSeleccionada, otraCategoria]);
   
   
-  const handleChange = (event) => {
-    const { name, value } = event.currentTarget;
-    setProduct(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleSwitchChange = (event) => {
-    setProduct(prev => ({ ...prev, activo: event.currentTarget.checked }));
-  };
-
+  const handleChange = (event) => setProduct(prev => ({ ...prev, [event.target.name]: event.target.value }));
+  const handleSwitchChange = (event) => setProduct(prev => ({ ...prev, activo: event.currentTarget.checked }));
   const handlePriceChange = (value) => setProduct(prev => ({ ...prev, precio: Number(value) || 0 }));
 
   const handleSubmit = async (e) => {
@@ -126,16 +119,29 @@ function ProductFormPage() {
           />
           
           <Stack gap="xs">
-            <Text size="sm" fw={500}>Categoría</Text>
-            <SegmentedControl
-              data={['Hamburguesas', 'Alitas', 'Costillas', 'Postres', 'Otro']}
-              value={categoriaSeleccionada}
-              onChange={setCategoriaSeleccionada}
-            />
-            {categoriaSeleccionada === 'Otro' && (
-              <TextInput placeholder="Especifica otra categoría" value={otraCategoria} onChange={(e) => setOtraCategoria(e.currentTarget.value)} />
-            )}
-          </Stack>
+                <Text size="sm" fw={500}>Categoría</Text>
+                <Chip.Group multiple={false} value={categoriaSeleccionada} onChange={setCategoriaSeleccionada}>
+                    <Group justify="center" gap="xs">
+                    {categoriasDefault.map(categoria => (
+                        <Chip key={categoria} value={categoria} variant="outline" size="sm">
+                        {categoria}
+                        </Chip>
+                    ))}
+                    <Chip value="Otro" variant="outline" size="sm">
+                        Otra...
+                    </Chip>
+                    </Group>
+                </Chip.Group>
+
+                {categoriaSeleccionada === 'Otro' && (
+                    <TextInput
+                    placeholder="Ej: Bebidas sin alcohol"
+                    value={otraCategoria}
+                    onChange={(e) => setOtraCategoria(e.currentTarget.value)}
+                    mt="xs"
+                    />
+                )}
+            </Stack>
           
           <Switch
             name="activo"

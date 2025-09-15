@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { Title, Text, Table, ScrollArea, Button, Group, ActionIcon, Badge, Loader, Alert, Center, Modal } from '@mantine/core';
-import { IconPencil, IconTrash, IconPlus, IconAlertCircle, IconPhotoScan } from '@tabler/icons-react';
+import { IconPencil, IconTrash, IconPlus, IconAlertCircle, IconPhotoScan, IconCheck } from '@tabler/icons-react';
 import { jwtDecode } from 'jwt-decode';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
@@ -42,26 +42,28 @@ function ProductListPage() {
 
   // --- FUNCIÓN PARA ELIMINAR UN PRODUCTO ---
   const handleDelete = async () => {
-        if (!productToDelete) return;
+    if (!productToDelete) return;
         try {
-            // ... (tu lógica de axios.delete no cambia) ...
-            notifications.show({
-                title: 'Producto Eliminado',
-                message: `El producto #${productToDelete.id} (${productToDelete.nombre}) ha sido eliminado.`,
-                color: 'green',
-                icon: <IconCheck />,
-            });
-            fetchProducts();
+        const apiUrl = `${import.meta.env.VITE_API_BASE_URL}/api/products/${productToDelete.id}`;
+        await axios.delete(apiUrl, { headers: { 'Authorization': `Bearer ${token}` } });
+        
+        notifications.show({
+            title: 'Producto Eliminado',
+            message: `El producto #${productToDelete.id} (${productToDelete.nombre}) ha sido eliminado con éxito.`,
+            color: 'green',
+            icon: <IconCheck />,
+        });
+        fetchProducts();
         } catch (err) {
-            // ... (tu manejo de error no cambia)
-            notifications.show({
-                title: 'Error',
-                message: 'No se pudo eliminar el producto.',
-                color: 'red',
-            });
+        notifications.show({
+            title: 'Error al Eliminar',
+            message: err.response?.data?.message || 'No se pudo completar la operación.',
+            color: 'red',
+            icon: <IconAlertCircle />,
+        });
         } finally {
-            close(); // Cierra el modal
-            setProductToDelete(null);
+        close();
+        setProductToDelete(null);
         }
     };
 

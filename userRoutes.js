@@ -54,38 +54,58 @@ router.get('/me', isAuthenticated, async (req, res) => {
   }
 });
 
-// --- RUTA PARA ACTUALIZAR LOS DATOS DEL USUARIO ACTUAL (PROTEGIDA) ---
-// PUT /api/users/me
-router.put('/me', isAuthenticated, 
-  [ // También validamos los datos al actualizar
-    body('nombre_completo', 'El nombre no puede estar vacío').not().isEmpty().trim().escape(),
-    body('email', 'Email inválido').isEmail().normalizeEmail(),
-  ],
-  async (req, res) => {
+// --- RUTA PARA ACTUALIZAR CUALQUIER USUARIO (SOLO ADMIN) ---
+router.put('/:id', isAdmin, [
+    body('nombre_completo').not().isEmpty().withMessage('El nombre es requerido.'),
+    body('email').isEmail().withMessage('Email inválido.'),
+    body('id_rol').isInt().withMessage('El rol es inválido.')
+], async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
-    const userId = req.user.id;
-    const { nombre_completo, email } = req.body;
+    const { id } = req.params;
+    const { nombre_completo, email, id_rol } = req.body;
 
     try {
-      const { data, error } = await supabase
-        .from('Usuarios')
-        .update({ nombre_completo, email })
-        .eq('id', userId)
-        .select()
-        .single();
+        const { data, error } = await supabase
+            .from('Usuarios')
+            .update({ nombre_completo, email, id_rol })
+            .eq('id', id)
+            .select('id, nombre_completo, email, id_rol') // Devolvemos los datos actualizados
+            .single();
 
-      if (error) {
-         // Manejar error de email duplicado
-        if (error.code === '23505') { 
-            return res.status(409).json({ message: 'El nuevo correo electrónico ya está en uso.' });
+        if (error) {
+            if (error.code === '23505') return res.status(409).json({ message: 'Ese email ya está en uso.' });
+            throw error;
         }
-        throw error;
-      }
-      res.json({ message: 'Perfil actualizado con éxito.', user: data });
+        res.json({ message: 'Usuario actualizado con éxito', user: data });
     } catch (error) {
-      res.status(500).json({ message: 'Error al actualizar el perfil.' });
+        res.status(500).json({ message: 'Error al actualizar el usuario.' });
+    }
+});
+
+// --- RUTA PARA ELIMINAR UN USUARIO ---
+// (Solo Admin)
+router.delete('/:id', isAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // ¡Regla de seguridad! Un admin no puede borrarse a sí mismo.
+        if (parseInt(req.user.id, 10) === parseInt(id, 10)) {
+            return res.status(403).json({ message: 'No puedes eliminar tu propia cuenta.' });
+        }
+
+        const { error } = await supabase
+            .from('Usuarios')
+            .delete()
+            .eq('id', id);
+
+        if (error) throw error;
+        
+        res.status(200).json({ message: 'Usuario eliminado exitosamente.' });
+    } catch (error) {
+        console.error(`Error al eliminar usuario ${req.params.id}:`, error);
+        res.status(500).json({ message: "Error al eliminar el usuario." });
     }
 });
 
