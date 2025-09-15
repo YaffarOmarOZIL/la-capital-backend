@@ -1,6 +1,8 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.jsx';
+import { Notifications } from '@mantine/notifications'; 
+import '@mantine/notifications/styles.css'; 
 
 // ¡Importante! La importación principal de los estilos de Mantine
 import '@mantine/core/styles.css';
@@ -24,6 +26,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     {/* El MantineProvider envuelve toda la aplicación */}
     <MantineProvider theme={theme} defaultColorScheme="auto">
+        <Notifications position="top-right" />
       <App />
     </MantineProvider>
   </React.StrictMode>

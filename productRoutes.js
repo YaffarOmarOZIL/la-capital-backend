@@ -77,8 +77,17 @@ router.post('/', isAdmin, [
 
 // --- 4. ACTUALIZAR un producto existente ---
 router.put('/:id', isAdmin, [
-    body('nombre').not().isEmpty().withMessage('El nombre es requerido.'),
-    body('precio').isFloat({ gt: 0 }).withMessage('El precio debe ser un número positivo.'),
+    body('nombre')
+        .trim()
+        .not().isEmpty().withMessage('El nombre es requerido.')
+        .isLength({ max: 100 }).withMessage('El nombre no puede exceder los 100 caracteres.'),
+
+    body('precio')
+        .isFloat({ gt: 0, max: 10000000 }).withMessage('El precio debe ser un número positivo y menor a 10,000,000.'),
+
+    body('categoria')
+        .trim()
+        .not().isEmpty().withMessage('La categoría es requerida.'),
 ], async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });

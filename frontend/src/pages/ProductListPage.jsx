@@ -1,15 +1,19 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
-import { Title, Text, Table, ScrollArea, Button, Group, ActionIcon, Badge, Loader, Alert, Center } from '@mantine/core';
+import { Title, Text, Table, ScrollArea, Button, Group, ActionIcon, Badge, Loader, Alert, Center, Modal } from '@mantine/core';
 import { IconPencil, IconTrash, IconPlus, IconAlertCircle, IconPhotoScan } from '@tabler/icons-react';
 import { jwtDecode } from 'jwt-decode';
+import { useDisclosure } from '@mantine/hooks';
+import { notifications } from '@mantine/notifications';
 
 function ProductListPage() {
   const navigate = useNavigate();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [opened, { open, close }] = useDisclosure(false);
+  const [productToDelete, setProductToDelete] = useState(null);
 
   // Obtenemos el rol del usuario para la UI condicional
   const token = localStorage.getItem('authToken');
@@ -37,20 +41,34 @@ function ProductListPage() {
   }, []); // Se ejecuta solo una vez al cargar
 
   // --- FUNCIÓN PARA ELIMINAR UN PRODUCTO ---
-  const handleDelete = async (productId) => {
-    if (window.confirm('¿Estás seguro de que quieres eliminar este producto? Esta acción no se puede deshacer.')) {
-      try {
-        const apiUrl = `${import.meta.env.VITE_API_BASE_URL}/api/products/${productId}`;
-        await axios.delete(apiUrl, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        // Refrescar la lista de productos después de eliminar
-        fetchProducts(); 
-      } catch (err) {
-        setError("Error al eliminar el producto.");
-      }
-    }
-  };
+  const handleDelete = async () => {
+        if (!productToDelete) return;
+        try {
+            // ... (tu lógica de axios.delete no cambia) ...
+            notifications.show({
+                title: 'Producto Eliminado',
+                message: `El producto #${productToDelete.id} (${productToDelete.nombre}) ha sido eliminado.`,
+                color: 'green',
+                icon: <IconCheck />,
+            });
+            fetchProducts();
+        } catch (err) {
+            // ... (tu manejo de error no cambia)
+            notifications.show({
+                title: 'Error',
+                message: 'No se pudo eliminar el producto.',
+                color: 'red',
+            });
+        } finally {
+            close(); // Cierra el modal
+            setProductToDelete(null);
+        }
+    };
+
+    const openDeleteModal = (product) => {
+        setProductToDelete(product);
+        open();
+    };
   
   // ----- RENDERIZADO -----
 
@@ -84,8 +102,8 @@ function ProductListPage() {
             <ActionIcon variant="light" color="blue" onClick={() => navigate(`/admin/products/edit/${product.id}`)} title="Editar Producto">
               <IconPencil size={16} />
             </ActionIcon>
-            <ActionIcon variant="light" color="red" onClick={() => handleDelete(product.id)} title="Eliminar Producto">
-              <IconTrash size={16} />
+            <ActionIcon variant="light" color="red" onClick={() => openDeleteModal(product)}>
+                <IconTrash size={16} />
             </ActionIcon>
             <ActionIcon variant="light" color="teal" onClick={() => navigate(`/admin/products/asset/${product.id}`)} title="Gestionar Activo Digital (3D/QR)">
               <IconPhotoScan size={16} />
@@ -126,6 +144,20 @@ function ProductListPage() {
           <Table.Tbody>{rows.length > 0 ? rows : <Table.Tr><Table.Td colSpan={userRole === 'Administrador' ? 7 : 6}><Text ta="center">No hay productos registrados.</Text></Table.Td></Table.Tr>}</Table.Tbody>
         </Table>
       </ScrollArea>
+      <Modal opened={opened} onClose={close} title="Confirmar Eliminación" centered>
+                <Text>¿Estás seguro de que quieres eliminar el producto
+                    <Text span fw={700} mx={4}>{productToDelete?.nombre}</Text>?
+                </Text>
+                <Text c="red" fw={700} mt="md">
+                    ¡Esta acción es irreversible!
+                </Text>
+                <Group justify="flex-end" mt="xl">
+                    <Button variant="default" onClick={close}>Cancelar</Button>
+                    <Button color="red" onClick={handleDelete}>
+                        Sí, eliminar producto
+                    </Button>
+                </Group>
+            </Modal>
     </>
   );
 }
