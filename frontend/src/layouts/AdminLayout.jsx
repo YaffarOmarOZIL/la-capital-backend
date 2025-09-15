@@ -1,6 +1,6 @@
 import { Outlet, useNavigate, NavLink } from 'react-router-dom';
-import { AppShell, Group, Image, Button, ActionIcon, Menu, Avatar, Text, useMantineColorScheme, Paper, Divider } from '@mantine/core';
-import { IconChevronDown, IconUserPlus, IconUsers, IconSun, IconMoonStars, IconLogout, IconUser, IconSettings } from '@tabler/icons-react';
+import { AppShell, Group, Image, Button, ActionIcon, Menu, Avatar, Text, useMantineColorScheme, Paper, Divider, UnstyledButton } from '@mantine/core';
+import { IconChevronDown, IconUserPlus, IconUsers, IconSun, IconMoonStars, IconLogout, IconUser, IconSettings, IconClipboardList } from '@tabler/icons-react';
 import { jwtDecode } from 'jwt-decode';
 import { useEffect, useState } from 'react';
 import logo from '../assets/logo-la-capital-cuadrado.png';
@@ -91,39 +91,58 @@ function AdminLayout() {
       <AppShell.Header>
         {/* ----- 1. HEADER PRINCIPAL ----- */}
         <Group justify="space-between" h={60} px="md">
+          <UnstyledButton component={Link} to="/admin/dashboard">
           <Group gap="xs"> 
-            <Image src={logo} h={30} w="auto" alt="Logo La Capital" /> 
-            <Text size="xl" fw={700} c="brand-yellow.5" visibleFrom="xs">La Capital Panel</Text>
-             {/* --- 2. NUEVO BOTÓN "DASHBOARD" --- */}
-            <Button 
-              component={NavLink} 
-              to="/admin/dashboard" 
-              variant="subtle" 
-              color="gray"
-            >
-              Dashboard
-            </Button>
-          </Group>
+              <Image src={logo} h={30} w="auto" alt="Logo La Capital" /> 
+              <Text size="xl" fw={700} c="brand-yellow.5" visibleFrom="xs">La Capital Panel</Text>
+              
+            </Group>
+          </UnstyledButton>
           <Group>
             <DarkModeToggle />
             <ProfileMenu onLogout={handleLogout} />
           </Group>
         </Group>
 
-        {/* ----- 2. SUB-HEADER DE HERRAMIENTAS (CONDICIONAL) ----- */}
+        {/* ----- 2. SUB-HEADER DE HERRAMIENTAS (¡CON EL NUEVO MENÚ!) ----- */}
         {userRole === 'Administrador' && (
           <>
             <Divider />
-            <Paper component={Group} gap="xs" p="xs" shadow="none">
+            <Paper component={Group} gap="sm" p="xs" shadow="none">
+
+              {/* --- Botón para volver al Dashboard Principal --- */}
+              <Button component={NavLink} to="/admin/dashboard" variant="subtle" color="gray">
+                Dashboard
+              </Button>
+              <Divider orientation="vertical" />
+              
+              {/* --- Menú de Productos --- */}
+              <Menu shadow="md" width={220}>
+                <Menu.Target>
+                  <Button variant="subtle" rightSection={<IconChevronDown size={16} />}>
+                    Gestión de Productos
+                  </Button>
+                </Menu.Target>
+                <Menu.Dropdown>
+                  <Menu.Label>Catálogo y Menú</Menu.Label>
+                  <Menu.Item component={NavLink} to="/admin/products" leftSection={<IconClipboardList size={16} />}>
+                    Ver Catálogo de Productos
+                  </Menu.Item>
+                  <Menu.Item component={NavLink} to="/admin/products/create" leftSection={<IconUserPlus size={16} />}>
+                    Añadir Nuevo Producto
+                  </Menu.Item>
+                </Menu.Dropdown>
+              </Menu>
+
+              {/* --- Menú de Usuarios (el que ya tenías) --- */}
               <AdminToolsMenu />
-              {/* Aquí podrías añadir otros menús a futuro */}
             </Paper>
           </>
         )}
       </AppShell.Header>
 
       <AppShell.Main 
-        pt={userRole === 'Administrador' ? 120 : 65} 
+        pt={userRole === 'Administrador' ? 120 : 65} // He ajustado el padding
         p="md"
       >
         <Outlet />

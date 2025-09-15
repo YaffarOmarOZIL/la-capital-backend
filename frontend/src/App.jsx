@@ -12,6 +12,9 @@ import UserCreatePage from './pages/UserCreatePage';
 import PrivateRoute from './components/PrivateRoute';
 import ProfilePage from './pages/ProfilePage';
 import ChangePasswordPage from './pages/ChangePasswordPage';
+import ProductListPage from './pages/ProductListPage';
+import ProductFormPage from './pages/ProductFormPage';
+import ProductAssetPage from './pages/ProductAssetPage';
 
 function App() {
   return (
@@ -38,6 +41,10 @@ function App() {
           <Route path="users/create" element={<UserCreatePage />} />
           <Route path="profile" element={<ProfilePage />} />
           <Route path="change-password" element={<ChangePasswordPage />} />
+          <Route path="products" element={<ProductListPage />} />
+          <Route path="products/create" element={<ProductFormPage />} />
+          <Route path="products/edit/:id" element={<ProductFormPage />} />
+          <Route path="products/asset/:id" element={<ProductAssetPage />} />
         </Route>
         
       </Routes>
