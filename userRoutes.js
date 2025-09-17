@@ -222,4 +222,29 @@ router.post(
   }
 );
 
+router.get('/:id', isAdmin, async (req, res) => {
+    const { id } = req.params;
+    try {
+        // Hacemos el JOIN para traernos también el nombre del rol
+        const { data, error } = await supabase
+            .from('Usuarios')
+            .select(`
+                id,
+                nombre_completo,
+                email,
+                id_rol
+            `)
+            .eq('id', id)
+            .single();
+
+        if (error) throw error;
+        if (!data) return res.status(404).json({ message: "Usuario no encontrado." });
+
+        res.json(data);
+    } catch (error) {
+        console.error(`Error al obtener usuario ${id}:`, error);
+        res.status(500).json({ message: "Error interno del servidor." });
+    }
+});
+
 module.exports = router;
