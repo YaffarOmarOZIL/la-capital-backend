@@ -46,7 +46,7 @@ function App() {
           <Route path="products/create" element={<ProductFormPage />} />
           <Route path="products/edit/:id" element={<ProductFormPage />} />
           <Route path="products/asset/:id" element={<ProductAssetPage />} />
-          <Route path="edit/:id" element={<UserEditPage />} />
+          <Route path="users/edit/:id" element={<UserEditPage />} />
         </Route>
         
       </Routes>

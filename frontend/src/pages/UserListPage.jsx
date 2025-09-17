@@ -1,4 +1,7 @@
+// src/pages/UserListPage.jsx - VERSIÓN FINAL Y CORREGIDA
+
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom'; // <--- 1. IMPORTACIÓN CORREGIDA
 import { Title, Text, Table, ScrollArea, Avatar, Badge, Loader, Alert, Center, Group, ActionIcon, Modal, Button } from '@mantine/core';
 import axios from 'axios';
 import { IconAlertCircle, IconPencil, IconTrash, IconCheck } from '@tabler/icons-react';
@@ -7,6 +10,7 @@ import { notifications } from '@mantine/notifications';
 import { jwtDecode } from 'jwt-decode';
 
 function UserListPage() {
+  const navigate = useNavigate(); // <--- 2. DEFINICIÓN DE NAVIGATE
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -17,7 +21,7 @@ function UserListPage() {
   const decodedToken = token ? jwtDecode(token) : {};
   const { role: userRole, id: currentUserId } = decodedToken;
 
-  // --- Efecto para cargar los datos cuando la página carga ---
+// --- Efecto para cargar los datos cuando la página carga ---
     const fetchUsers = async () => {
       try {
         // Obtenemos el token guardado del login
@@ -67,11 +71,9 @@ function UserListPage() {
     open();
   };
 
-  // --- Renderizado Condicional ---
   if (loading) return <Center><Loader color="brand-yellow" /></Center>;
   if (error) return <Alert icon={<IconAlertCircle />} title="Error" color="red">{error}</Alert>;
 
-  // --- Creación de las Filas de la Tabla ---
   const rows = users.map((user) => (
     <Table.Tr key={user.id}>
       <Table.Td>
@@ -85,8 +87,8 @@ function UserListPage() {
         </Badge>
       </Table.Td>
       <Table.Td>
+        {/* Ahora el botón onClick ya sabe qué es "navigate" */}
         <Group gap="xs">
-          {/* ¡Ahora el botón de editar es funcional! */}
           <ActionIcon variant="light" color="blue" onClick={() => navigate(`/admin/users/edit/${user.id}`)} title="Editar Usuario">
             <IconPencil size={16} />
           </ActionIcon>
@@ -110,21 +112,20 @@ function UserListPage() {
       <Text c="dimmed" mb="lg">Desde aquí puedes ver, editar y eliminar los usuarios del personal.</Text>
       
       <ScrollArea>
-        <Table miw={800} striped highlightOnHover withTableBorder >
+        <Table miw={800} striped highlightOnHover withTableBorder>
           <Table.Thead>
-            <Table.Tr>
+            <Table.Tr>{/* SIN ESPACIOS AQUÍ */}
               <Table.Th>Avatar</Table.Th>
               <Table.Th>Nombre Completo</Table.Th>
               <Table.Th>Email</Table.Th>
               <Table.Th>Rol</Table.Th>
-              <Table.Th>Acciones</Table.Th> {/* <-- NUEVA COLUMNA */}
-            </Table.Tr>
+              <Table.Th>Acciones</Table.Th>
+            </Table.Tr>{/* SIN ESPACIOS AQUÍ */}
           </Table.Thead>
-          <Table.Tbody>{rows}</Table.Tbody>
+          <Table.Tbody>{rows.length > 0 ? rows : <Table.Tr><Table.Td colSpan={5}><Text ta="center">No hay usuarios registrados.</Text></Table.Td></Table.Tr>}</Table.Tbody>
         </Table>
       </ScrollArea>
 
-      {/* MODAL DE CONFIRMACIÓN PARA ELIMINAR */}
       <Modal opened={opened} onClose={close} title="Confirmar Eliminación" centered>
         <Text>¿Estás seguro de que quieres eliminar a 
           <Text span fw={700} mx={4}>{userToDelete?.nombre_completo}</Text>?</Text>
