@@ -8,31 +8,39 @@ function ClientListPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchClients = async () => {
-      try {
-        const token = localStorage.getItem('authToken');
-        const { data } = await axios.get('/api/clients', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        
-        setClients(Array.isArray(data) ? data : []);
-
-      } catch (error) {
-        console.error("Error al cargar los clientes:", error);
-        // Si hay un error, también nos aseguramos de que clients sea un array vacío.
-        setClients([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchClients();
-  }, []);
+        const fetchClients = async () => {
+            try {
+                const token = localStorage.getItem('authToken');
+                // ----- ¡USANDO TU PATRÓN! -----
+                const apiUrl = `${import.meta.env.VITE_API_BASE_URL}/api/clients`;
+                const { data } = await axios.get(apiUrl, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                setClients(Array.isArray(data) ? data : []);
+            } catch (error) {
+                console.error("Error al cargar los clientes:", error);
+                setClients([]);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchClients();
+    }, []);
 
   const clientRows = clients.map((client) => (
     <Table.Tr key={client.id}>
       <Table.Td>{client.nombre_completo}</Table.Td>
       <Table.Td>{client.numero_telefono}</Table.Td>
-      <Table.Td>{client.fecha_nacimiento}</Table.Td>
+      <Table.Td>
+        {/*
+            Primero, comprobamos si la fecha existe.
+            Si existe, la convertimos a un objeto Date y luego a un formato local (DD/MM/YYYY).
+            Si no existe, mostramos 'No registrada'.
+        */}
+        {client.fecha_nacimiento 
+            ? new Date(client.fecha_nacimiento).toLocaleDateString() 
+            : 'No registrada'}
+      </Table.Td>
       <Table.Td>
         <Button component={Link} to={`/admin/clients/edit/${client.id}`} variant="outline" size="xs">
           Editar

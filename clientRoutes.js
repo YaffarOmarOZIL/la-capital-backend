@@ -97,4 +97,24 @@ router.delete('/:id', isAdmin, async (req, res) => {
     }
 });
 
+router.get('/:id', isAuthenticated, async (req, res) => {
+    const { id } = req.params;
+    try {
+        const { data, error } = await supabase
+            .from('Clientes')
+            .select('*')
+            .eq('id', id)
+            .single(); // .single() es clave, dice "solo espero un resultado"
+
+        if (error) throw error;
+        if (!data) {
+            return res.status(404).json({ message: 'Cliente no encontrado.' });
+        }
+        res.json(data);
+    } catch (error) {
+        console.error(`Error al obtener cliente ${id}:`, error);
+        res.status(500).json({ message: 'Error al obtener el cliente.' });
+    }
+});
+
 module.exports = router;

@@ -6,6 +6,8 @@ import { TextInput, Button, Box, Group, Title, Select, Textarea } from '@mantine
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { DateInput } from '@mantine/dates'; // Para la fecha de nacimiento
+import { notifications } from '@mantine/notifications';
+import dayjs from 'dayjs';
 
 function ClientFormPage() {
     const { clientId } = useParams(); // Obtiene el 'id' de la URL si estamos editando
@@ -17,7 +19,7 @@ function ClientFormPage() {
         initialValues: {
             nombre_completo: '',
             numero_telefono: '',
-            fecha_nacimiento: null,
+            fecha_nacimiento: null, 
             genero: '',
             notas: ''
         },
@@ -36,6 +38,25 @@ function ClientFormPage() {
                 return null;
             },
             notas: (value) => (value.length > 300 ? 'Las notas no pueden exceder los 300 caracteres.' : null),
+            fecha_nacimiento: (value) => {
+                if (!value) return null; // Si está vacío, no hay error.
+
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+
+                if (value > today) {
+                    return 'La fecha no puede ser en el futuro.';
+                }
+
+                const threeYearsAgo = new Date();
+                threeYearsAgo.setFullYear(threeYearsAgo.getFullYear() - 3);
+
+                if (value > threeYearsAgo) {
+                    return 'El cliente debe ser mayor de 3 años.';
+                }
+
+                return null;
+            },
         },
     });
 
@@ -44,31 +65,43 @@ function ClientFormPage() {
         if (isEditing) {
             const fetchClient = async () => {
                 const token = localStorage.getItem('authToken');
-                const { data } = await axios.get(`/api/clients/${clientId}`, {
+                // ----- ¡USANDO TU PATRÓN! -----
+                const apiUrl = `${import.meta.env.VITE_API_BASE_URL}/api/clients/${clientId}`;
+                const { data } = await axios.get(apiUrl, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
-                // Convertir la fecha a un objeto Date para el componente DateInput
                 form.setValues({ ...data, fecha_nacimiento: data.fecha_nacimiento ? new Date(data.fecha_nacimiento) : null });
             };
             fetchClient();
         }
     }, [isEditing, clientId]);
 
-    // --- Función que se ejecuta al enviar el formulario ---
     const handleSubmit = async (values) => {
         try {
             const token = localStorage.getItem('authToken');
-            const config = { headers: { Authorization: `Bearer ${token}` } };
-            
+
+            // ----- ¡AQUÍ ESTÁ EL ARREGLO! -----
+            const payload = {
+                ...values,
+                fecha_nacimiento: values.fecha_nacimiento 
+                    ? dayjs(values.fecha_nacimiento).format('YYYY-MM-DD') 
+                    : null,
+            };
+
             if (isEditing) {
-                await axios.put(`/api/clients/${clientId}`, values, config);
+                const apiUrl = `${import.meta.env.VITE_API_BASE_URL}/api/clients/${clientId}`;
+                await axios.put(apiUrl, payload, { headers: { Authorization: `Bearer ${token}` } });
+                notifications.show({ title: 'Éxito', message: 'Cliente actualizado correctamente.', color: 'green' });
             } else {
-                await axios.post('/api/clients', values, config);
+                const apiUrl = `${import.meta.env.VITE_API_BASE_URL}/api/clients`;
+                await axios.post(apiUrl, payload, { headers: { Authorization: `Bearer ${token}` } });
+                notifications.show({ title: 'Éxito', message: 'Cliente creado correctamente.', color: 'green' });
             }
-            navigate('/admin/clients'); // Redirigir a la lista de clientes
+            navigate('/admin/clients');
         } catch (error) {
             console.error('Error al guardar el cliente:', error);
-            // Aquí podrías añadir una notificación de error para el usuario
+            const message = error.response?.data?.message || 'No se pudo guardar el cliente.';
+            notifications.show({ title: 'Error', message, color: 'red' });
         }
     };
 
