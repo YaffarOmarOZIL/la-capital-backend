@@ -58,12 +58,16 @@ router.post('/', isAdmin, [
     if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
     try {
-        const { nombre, descripcion, precio, categoria } = req.body;
-        const newProduct = { nombre, descripcion, precio, categoria, activo: true };
+        // ----- ¡LA ÚNICA CORRECCIÓN ESTÁ AQUÍ! -----
+        // Ahora también leemos 'activo' del cuerpo de la petición.
+        const { nombre, descripcion, precio, categoria, activo } = req.body;
+
+        // Ya no forzamos 'activo: true'. Usamos el valor que llegó.
+        const newProduct = { nombre, descripcion, precio, categoria, activo };
 
         const { data, error } = await supabase
             .from('Productos')
-            .insert(newProduct)
+            .insert(newProduct) // <-- Ahora insertará el objeto correcto
             .select()
             .single();
         

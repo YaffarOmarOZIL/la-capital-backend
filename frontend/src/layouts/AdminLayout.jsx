@@ -1,5 +1,6 @@
 import { Outlet, useNavigate, NavLink as RouterNavLink } from 'react-router-dom';
-import { AppShell, Group, Image, ActionIcon, Menu, Avatar, Text, useMantineColorScheme, UnstyledButton, Burger, Stack, NavLink as MantineNavLink } from '@mantine/core';
+//mantine core
+import { AppShell, ScrollArea, Group, Image, ActionIcon, Menu, Avatar, Text, useMantineColorScheme, UnstyledButton, Burger, Stack, NavLink as MantineNavLink } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 //iconos
 import { IconSend, IconUserPlus, IconUsers, IconSun, IconMoonStars, IconLogout, IconUser, IconSettings, IconClipboardList, IconLayoutDashboard, IconAddressBook, IconChartBar } from '@tabler/icons-react';
@@ -143,44 +144,46 @@ function AdminLayout() {
             </AppShell.Header>
 
             {userRole === 'Administrador' && (
-                <AppShell.Navbar p="md">
-                  <Stack gap="sm">
-                      {/* --- DASHBOARD --- */}
-                      <MenuLink to="/admin/dashboard" label="Dashboard" icon={<IconLayoutDashboard size={16} />} onClick={close} />
-                      {/* --- GESTIÓN DE CATÁLOGO --- */}
-                      <Text size="xs" tt="uppercase" c="dimmed" fw={700} mt="md">Gestión</Text>
-                      <MenuLink to="/admin/products" label="Catálogo de Productos" icon={<IconClipboardList size={16} />} onClick={close} />
-                      <MenuLink to="/admin/products/create" label="Añadir Producto" icon={<IconUserPlus size={16} />} onClick={close} />
-                      {/* ----- ¡NUEVA SECCIÓN DE CLIENTES! ----- */}
-                      <Text size="xs" tt="uppercase" c="dimmed" fw={700} mt="md">Clientes</Text>
-                      <MenuLink 
-                          to="/admin/clients" // Cambiado para que coincida con la ruta del backend
-                          label="Ver Clientes" 
-                          icon={<IconAddressBook size={16} />} 
-                          onClick={close} 
-                      />
-                      <MenuLink 
-                          to="/admin/clients/create" // Cambiado para que coincida con la ruta del backend
-                          label="Añadir Nuevo Cliente" 
-                          icon={<IconUserPlus size={16} />} 
-                          onClick={close} 
-                      />
-                      {/* --- BOTONES PARA EL FUTURO (deshabilitados) --- */}
-                      <MantineNavLink
-                          label="Análisis de Clientela"
-                          icon={<IconChartBar size={16} />}
-                          disabled
-                      />
-                      <MantineNavLink
-                          label="Campañas de Marketing"
-                          icon={<IconSend size={16} />} // Necesitarás importar IconSend
-                          disabled
-                      />
-                      {/* --- GESTIÓN DE PERSONAL --- */}
-                      <Text size="xs" tt="uppercase" c="dimmed" fw={700} mt="md">Personal</Text>
-                      <MenuLink to="/admin/users" label="Ver Usuarios" icon={<IconUsers size={16} />} onClick={close} />
-                      <MenuLink to="/admin/users/create" label="Crear Usuario" icon={<IconUserPlus size={16} />} onClick={close} />
-                  </Stack>
+                <AppShell.Navbar p={0}>
+                  <ScrollArea h="100%">
+                    <Stack p="md" gap="sm">
+                        {/* --- DASHBOARD --- */}
+                        <MenuLink to="/admin/dashboard" label="Dashboard" icon={<IconLayoutDashboard size={16} />} onClick={close} />
+                        {/* --- GESTIÓN DE CATÁLOGO --- */}
+                        <Text size="xs" tt="uppercase" c="dimmed" fw={700} mt="md">Gestión</Text>
+                        <MenuLink to="/admin/products" label="Catálogo de Productos" icon={<IconClipboardList size={16} />} onClick={close} />
+                        <MenuLink to="/admin/products/create" label="Añadir Producto" icon={<IconUserPlus size={16} />} onClick={close} />
+                        {/* ----- ¡NUEVA SECCIÓN DE CLIENTES! ----- */}
+                        <Text size="xs" tt="uppercase" c="dimmed" fw={700} mt="md">Clientes</Text>
+                        <MenuLink 
+                            to="/admin/clients" // Cambiado para que coincida con la ruta del backend
+                            label="Ver Clientes" 
+                            icon={<IconAddressBook size={16} />} 
+                            onClick={close} 
+                        />
+                        <MenuLink 
+                            to="/admin/clients/create" // Cambiado para que coincida con la ruta del backend
+                            label="Añadir Nuevo Cliente" 
+                            icon={<IconUserPlus size={16} />} 
+                            onClick={close} 
+                        />
+                        {/* --- BOTONES PARA EL FUTURO (deshabilitados) --- */}
+                        <MantineNavLink
+                            label="Análisis de Clientela"
+                            icon={<IconChartBar size={16} />}
+                            disabled
+                        />
+                        <MantineNavLink
+                            label="Campañas de Marketing"
+                            icon={<IconSend size={16} />} // Necesitarás importar IconSend
+                            disabled
+                        />
+                        {/* --- GESTIÓN DE PERSONAL --- */}
+                        <Text size="xs" tt="uppercase" c="dimmed" fw={700} mt="md">Personal</Text>
+                        <MenuLink to="/admin/users" label="Ver Usuarios" icon={<IconUsers size={16} />} onClick={close} />
+                        <MenuLink to="/admin/users/create" label="Crear Usuario" icon={<IconUserPlus size={16} />} onClick={close} />
+                    </Stack>
+                  </ScrollArea>
               </AppShell.Navbar>
             )}
 

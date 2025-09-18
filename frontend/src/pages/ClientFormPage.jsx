@@ -39,12 +39,17 @@ function ClientFormPage() {
             },
             notas: (value) => (value.length > 300 ? 'Las notas no pueden exceder los 300 caracteres.' : null),
             fecha_nacimiento: (value) => {
-                if (!value) return null; // Si está vacío, no hay error.
+                // --- TRUCO DE DEPURACIÓN ---
+                // Abre la consola del navegador (F12) para ver esto en acción.
+                console.log("Validando la fecha:", value);
+
+                if (!value) return null;
 
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
 
                 if (value > today) {
+                    console.log("¡Error! La fecha es del futuro.");
                     return 'La fecha no puede ser en el futuro.';
                 }
 
@@ -52,9 +57,11 @@ function ClientFormPage() {
                 threeYearsAgo.setFullYear(threeYearsAgo.getFullYear() - 3);
 
                 if (value > threeYearsAgo) {
+                    console.log("¡Error! El cliente es menor de 3 años.");
                     return 'El cliente debe ser mayor de 3 años.';
                 }
 
+                console.log("¡La fecha es válida!");
                 return null;
             },
         },
@@ -105,6 +112,12 @@ function ClientFormPage() {
         }
     };
 
+    // fecha máxima que se puede seleccionar.
+    const maxDate = new Date();
+    // Calculamos la fecha de hace exactamente 3 años.
+    const threeYearsAgo = new Date();
+    threeYearsAgo.setFullYear(threeYearsAgo.getFullYear() - 3);
+
     return (
         <Box maw={500} mx="auto">
             <Title order={2} mb="lg">
@@ -131,7 +144,10 @@ function ClientFormPage() {
                     placeholder="Selecciona una fecha" 
                     {...form.getInputProps('fecha_nacimiento')} 
                     mt="sm"
-                    valueFormat="DD/MM/YYYY" // Para que se vea bonito
+                    valueFormat="DD/MM/YYYY"
+                    // El calendario no permitirá seleccionar fechas posteriores a hoy.
+                    maxDate={maxDate} 
+                    excludeDate={(date) => date > threeYearsAgo}
                 />
                 
                 {/* --- NUEVOS CAMPOS COMPLETADOS --- */}

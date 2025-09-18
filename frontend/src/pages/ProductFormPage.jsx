@@ -16,6 +16,9 @@ function ProductFormPage() {
     categoria: '',
     activo: true
   });
+
+  console.log('%cEstado actual del producto:', 'color: lightblue;', product);
+
   const [loading, setLoading] = useState(isEditing); // Si estamos editando, empezamos cargando
   const [error, setError] = useState('');
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState('');
@@ -51,23 +54,27 @@ function ProductFormPage() {
     }
   }, [id, isEditing]);
 
-  useEffect(() => {
+  /*useEffect(() => {
     if (categoriaSeleccionada === 'Otro') {
       setProduct(p => ({ ...p, categoria: otraCategoria }));
     } else {
       setProduct(p => ({ ...p, categoria: categoriaSeleccionada }));
     }
-  }, [categoriaSeleccionada, otraCategoria]);
+  }, [categoriaSeleccionada, otraCategoria]);*/
   
   
   const handleChange = (event) => setProduct(prev => ({ ...prev, [event.target.name]: event.target.value }));
-  const handleSwitchChange = (event) => setProduct(prev => ({ ...prev, activo: event.currentTarget.checked }));
+  const handleSwitchChange = () => {
+        console.log('%c¡Switch Clickeado! El valor de "activo" debería cambiar a:', 'color: orange;', !product.activo);
+        setProduct(prev => ({ ...prev, activo: !prev.activo }));
+    };
   const handlePriceChange = (value) => setProduct(prev => ({ ...prev, precio: Number(value) || 0 }));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
+    const finalCategory = categoriaSeleccionada === 'Otro' ? otraCategoria : categoriaSeleccionada;
     const token = localStorage.getItem('authToken');
     const apiUrl = isEditing 
       ? `${import.meta.env.VITE_API_BASE_URL}/api/products/${id}`
@@ -75,16 +82,24 @@ function ProductFormPage() {
     
     const method = isEditing ? 'put' : 'post';
 
+    const payload = {
+        ...product,
+        categoria: finalCategory
+    };
+    console.log('%c--- Enviando al Backend ---', 'font-weight: bold; color: lightgreen;');
+    console.log('Payload final:', payload);
+
     try {
-            await axios[method](apiUrl, product, { headers: { 'Authorization': `Bearer ${token}` } });
-            notifications.show({ title: '¡Éxito!', message: `Producto ${isEditing ? 'actualizado' : 'creado'} correctamente.`, color: 'green' });
-            navigate('/admin/products');
-        } catch (err) {
-            const errorMsg = err.response?.data?.errors ? err.response.data.errors.map(e => e.msg).join(', ') : (err.response?.data?.message || 'Ocurrió un error inesperado.');
-            notifications.show({ title: 'Error', message: errorMsg, color: 'red' });
-        } finally {
-            setLoading(false);
-        }
+          // 3. Enviamos el 'payload' perfecto y final al backend.
+      await axios[method](apiUrl, payload, { headers: { 'Authorization': `Bearer ${token}` } });
+      notifications.show({ title: '¡Éxito!', message: `Producto ${isEditing ? 'actualizado' : 'creado'} correctamente.`, color: 'green' });
+      navigate('/admin/products');
+      } catch (err) {
+          const errorMsg = err.response?.data?.errors ? err.response.data.errors.map(e => e.msg).join(', ') : (err.response?.data?.message || 'Ocurrió un error inesperado.');
+          notifications.show({ title: 'Error', message: errorMsg, color: 'red' });
+      } finally {
+          setLoading(false);
+      }
     };
     
   if (loading) return <Center h={200}><Loader/></Center>;
