@@ -16,6 +16,8 @@ import ProductListPage from './pages/ProductListPage';
 import ProductFormPage from './pages/ProductFormPage';
 import ProductAssetPage from './pages/ProductAssetPage';
 import UserEditPage from './pages/UserEditPage';
+import ClientListPage from './pages/ClientListPage';
+import ClientFormPage from './pages/ClientFormPage';
 
 function App() {
   return (
@@ -47,6 +49,9 @@ function App() {
           <Route path="products/edit/:id" element={<ProductFormPage />} />
           <Route path="products/asset/:id" element={<ProductAssetPage />} />
           <Route path="users/edit/:id" element={<UserEditPage />} />
+          <Route path="clients" element={<ClientListPage />} />
+          <Route path="clients/create" element={<ClientFormPage />} />
+          <Route path="clients/edit/:clientId" element={<ClientFormPage />} />
         </Route>
         
       </Routes>

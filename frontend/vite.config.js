@@ -8,6 +8,15 @@ export default defineConfig({
     hmr: {
       clientPort: 443 
     },
-    allowedHosts: ['.gitpod.io'] 
+    allowedHosts: ['.gitpod.io'] ,
+     proxy: {
+      '/api': {
+        // Apuntamos a tu backend desplegado en Render
+        target: 'https://la-capital-backend.onrender.com', 
+        changeOrigin: true,
+        // Es una buena práctica añadir esto al apuntar a un https
+        secure: false, 
+      }
+    }
   }
 })

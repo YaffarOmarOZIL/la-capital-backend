@@ -1,3 +1,4 @@
+//U:\Documentos\la_capital_fidelizacion\index.js
 const express = require('express');
 const cors = require('cors');
 const app = express();
@@ -12,6 +13,7 @@ const authRoutes = require('./authRoutes');
 const userRoutes = require('./userRoutes');
 const twoFactorAuthRoutes = require('./twoFactorAuthRoutes');
 const productRoutes = require('./productRoutes');
+const clientRoutes = require('./clientRoutes');
 
 
 app.get('/', (req, res) => {
@@ -23,6 +25,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/2fa', twoFactorAuthRoutes);
 app.use('/api/products', productRoutes);
+app.use('/api/clients', clientRoutes);
 
 
 app.listen(PORT, () => {
