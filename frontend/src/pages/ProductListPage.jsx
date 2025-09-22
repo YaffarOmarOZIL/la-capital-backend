@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { Title, Text, Table, ScrollArea, Button, Group, ActionIcon, Badge, Loader, Alert, Center, Modal } from '@mantine/core';
-import { IconPencil, IconTrash, IconPlus, IconAlertCircle, IconPhotoScan, IconCheck } from '@tabler/icons-react';
+import { IconPencil, IconTrash, IconPlus, IconAlertCircle, IconPhotoScan, IconCheck, IconBox } from '@tabler/icons-react';
 import { jwtDecode } from 'jwt-decode';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
@@ -107,8 +107,8 @@ function ProductListPage() {
             <ActionIcon variant="light" color="red" onClick={() => openDeleteModal(product)}>
                 <IconTrash size={16} />
             </ActionIcon>
-            <ActionIcon variant="light" color="teal" onClick={() => navigate(`/admin/products/asset/${product.id}`)} title="Gestionar Activo Digital (3D/QR)">
-              <IconPhotoScan size={16} />
+            <ActionIcon component={Link} to={`/admin/products/asset/${product.id}`} variant="light" color="teal" title="Gestionar Activo 3D">
+                <IconBox size={16} />
             </ActionIcon>
           </Group>
         </Table.Td>

@@ -14,6 +14,7 @@ const userRoutes = require('./userRoutes');
 const twoFactorAuthRoutes = require('./twoFactorAuthRoutes');
 const productRoutes = require('./productRoutes');
 const clientRoutes = require('./clientRoutes');
+const assetRoutes = require('./assetRoutes');
 
 
 app.get('/', (req, res) => {
@@ -26,6 +27,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/2fa', twoFactorAuthRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/clients', clientRoutes);
+app.use('/api', assetRoutes);
 
 
 app.listen(PORT, () => {
