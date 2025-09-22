@@ -62,4 +62,48 @@ router.post('/products/:productId/assets/model', isAdmin, upload.single('modelFi
     }
 });
 
+// --- RUTA PARA ELIMINAR UN MODELO 3D ---
+router.delete('/products/:productId/assets/model', isAdmin, async (req, res) => {
+    const { productId } = req.params;
+
+    try {
+        // 1. Primero, buscamos en la BDD para obtener el nombre del archivo. ¡Esto es clave!
+        const { data: assetData, error: findError } = await supabase
+            .from('ActivosDigitales')
+            .select('url_modelo_3d')
+            .eq('id_producto', productId)
+            .single();
+
+        if (findError || !assetData) {
+            return res.status(404).json({ message: 'No se encontró un activo digital para este producto.' });
+        }
+
+        // 2. Extraemos el nombre del archivo de la URL
+        const fileName = assetData.url_modelo_3d.split('/').pop();
+
+        // 3. Eliminamos el archivo del Bucket de Supabase Storage
+        const { error: storageError } = await supabase.storage
+            .from('modelos-3d')
+            .remove([fileName]);
+
+        if (storageError) {
+            console.warn("Advertencia: No se pudo eliminar el archivo del storage, puede que ya no existiera. Continuando con el borrado de la BDD...");
+        }
+
+        // 4. Eliminamos el registro de la tabla 'ActivosDigitales'
+        const { error: dbError } = await supabase
+            .from('ActivosDigitales')
+            .delete()
+            .eq('id_producto', productId);
+
+        if (dbError) throw dbError;
+
+        res.status(200).json({ message: 'Activo digital eliminado correctamente.' });
+
+    } catch (error) {
+        console.error('Error al eliminar el activo digital:', error);
+        res.status(500).json({ message: 'Error en el servidor al eliminar el activo.' });
+    }
+});
+
 module.exports = router;
