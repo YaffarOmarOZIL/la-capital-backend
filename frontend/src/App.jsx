@@ -18,7 +18,6 @@ import ProductAssetPage from './pages/ProductAssetPage';
 import UserEditPage from './pages/UserEditPage';
 import ClientListPage from './pages/ClientListPage';
 import ClientFormPage from './pages/ClientFormPage';
-import ProductAssetPage from './pages/ProductAssetPage';
 
 function App() {
   return (
