@@ -17,7 +17,7 @@ router.get('/', isAuthenticated, async (req, res) => {
                 precio,
                 categoria,
                 activo,
-                ActivosDigitales ( id, url_modelo_3d, url_qr_code )
+                ActivosDigitales ( id, urls_imagenes ) 
             `)
             .order('id', { ascending: true });
 
@@ -35,7 +35,10 @@ router.get('/:id', isAuthenticated, async (req, res) => {
         const { id } = req.params;
         const { data, error } = await supabase
             .from('Productos')
-            .select('*, ActivosDigitales (*)')
+            .select(`
+                *, 
+                ActivosDigitales ( id, urls_imagenes )
+            `)
             .eq('id', id)
             .single();
 
