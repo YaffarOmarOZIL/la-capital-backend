@@ -18,6 +18,7 @@ import UserEditPage from './pages/UserEditPage';
 import ClientListPage from './pages/ClientListPage';
 import ClientFormPage from './pages/ClientFormPage';
 import ProductSpritePage from './pages/ProductSpritePage'; 
+import ARViewerPage from './pages/ARViewerPage';
 
 function App() {
   return (
@@ -27,6 +28,7 @@ function App() {
         {/* --- 1. RUTAS PÚBLICAS --- */}
         <Route path="/" element={<ClientHomePage />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/ar-viewer/:productId" element={<ARViewerPage />} />
 
         {/* --- 2. ÁREA DE ADMINISTRACIÓN (PRIVADA) --- */}
         <Route 

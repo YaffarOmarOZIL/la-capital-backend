@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Title, Text, Paper, Button, Group, Loader, Center, SimpleGrid, FileButton, Image, Box } from '@mantine/core';
+import { Title, Text, Paper, Button, Group, Loader, Center, SimpleGrid, FileButton, Image, Box, Stack } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconUpload, IconCamera } from '@tabler/icons-react';
 

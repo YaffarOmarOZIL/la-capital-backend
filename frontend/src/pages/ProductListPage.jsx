@@ -107,7 +107,7 @@ function ProductListPage() {
             <ActionIcon variant="light" color="red" onClick={() => openDeleteModal(product)}>
                 <IconTrash size={16} />
             </ActionIcon>
-            <ActionIcon component={Link} to={`/admin/products/sprites/${product.id}`} variant="light" color="teal" title="Gestionar Imágenes AR"> <IconPhoto size={16} />
+            <ActionIcon component={Link} to={`/admin/products/sprites/${product.id}`} variant="light" color="teal" title="Gestionar Imágenes AR">
               <IconPhoto size={16} />
             </ActionIcon> 
           </Group>
