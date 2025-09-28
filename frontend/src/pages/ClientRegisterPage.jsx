@@ -18,8 +18,27 @@ function ClientRegisterPage() {
             confirmPassword: '',
         },
         validate: {
-            nombre_completo: (value) => (value.trim().length < 2 ? 'El nombre parece muy corto' : null),
+            nombre_completo: (value) => {
+                if (!value.trim()) return 'El nombre es obligatorio.';
+                if (value.length > 50) return 'El nombre no debe exceder los 50 caracteres.';
+                // Regex para permitir solo letras (con acentos), espacios y apóstrofes/guiones
+                if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s'-]+$/.test(value)) {
+                    return 'El nombre solo puede contener letras y espacios.';
+                }
+                return null;
+            },
             email: (value) => (/^\S+@\S+\.\S+$/.test(value) ? null : 'Email inválido'),
+            
+            // ¡Validación robusta para el teléfono!
+            numero_telefono: (value) => {
+                if (!value) return 'El número es obligatorio.';
+                // Regex para números de celular de Bolivia (8 dígitos, empieza con 6 o 7)
+                if (!/^[67]\d{7}$/.test(value)) {
+                    return 'Introduce un número de celular válido (ej: 71234567).';
+                }
+                return null;
+            },
+            
             password: (value) => (value.length < 8 ? 'La contraseña debe tener al menos 8 caracteres' : null),
             confirmPassword: (value, values) => (value !== values.password ? 'Las contraseñas no coinciden' : null),
         },

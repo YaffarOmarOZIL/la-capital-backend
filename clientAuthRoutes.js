@@ -12,6 +12,7 @@ router.post(
         // Validaciones súper importantes en el backend
         body('nombre_completo').not().isEmpty().trim().escape().withMessage('El nombre es requerido.'),
         body('email').isEmail().normalizeEmail().withMessage('Por favor, introduce un email válido.'),
+        body('numero_telefono').not().isEmpty().trim().withMessage('El número de teléfono es requerido.'),
         body('password').isLength({ min: 8 }).withMessage('La contraseña debe tener al menos 8 caracteres.')
     ],
     async (req, res) => {
