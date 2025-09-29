@@ -21,6 +21,8 @@ import ProductSpritePage from './pages/ProductSpritePage';
 import ARViewerPage from './pages/ARViewerPage';
 import ClientRegisterPage from './pages/ClientRegisterPage';
 import ClientLoginPage from './pages/ClientLoginPage';
+import ClientPrivateRoute from './components/ClientPrivateRoute';
+import ClientExperiencePage from './pages/ClientExperiencePage';
 
 function App() {
   return (
@@ -34,6 +36,11 @@ function App() {
         <Route path="/registro-cliente" element={<ClientRegisterPage />} />
         <Route path="/login-cliente" element={<ClientLoginPage />} />
         
+        {/* --- RUTAS PRIVADAS DE CLIENTE --- */}
+        <Route element={<ClientPrivateRoute />}>
+            <Route path="/experiencia-cliente" element={<ClientExperiencePage />} />
+            {/* Aquí irían otras páginas privadas del cliente en el futuro */}
+        </Route>
 
         {/* --- 2. ÁREA DE ADMINISTRACIÓN (PRIVADA) --- */}
         <Route 

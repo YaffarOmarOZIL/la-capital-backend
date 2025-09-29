@@ -76,7 +76,7 @@ router.post('/login', [
         // 1. Buscamos al cliente por su email
         const { data: cliente, error: findError } = await supabase
             .from('Clientes')
-            .select('id, password_hash') // Pedimos solo el id y la contraseña encriptada
+            .select('id, nombre_completo, password_hash') // Pedimos solo el id y la contraseña encriptada
             .eq('email', email)
             .single();
 
@@ -95,6 +95,7 @@ router.post('/login', [
         // 3. ¡Creamos el pasaporte VIP (JWT)!
         const payload = {
             id: cliente.id,
+            nombre: cliente.nombre_completo, // <-- ¡Añadimos el nombre!
             role: 'Cliente' // Un rol específico para diferenciarlo de los empleados
         };
 
