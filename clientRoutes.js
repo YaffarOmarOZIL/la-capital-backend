@@ -60,12 +60,14 @@ router.post('/', isAuthenticated, [
 // --- 3. ACTUALIZAR un cliente ---
 router.put('/:id', isAuthenticated, async (req, res) => {
     const { id } = req.params;
-    const { nombre_completo, numero_telefono, fecha_nacimiento, genero, notas } = req.body;
+    // ----- ¡AQUÍ ESTÁ EL CAMBIO! Ahora también aceptamos 'email' -----
+    const { nombre_completo, numero_telefono, fecha_nacimiento, genero, notas, email } = req.body;
 
     try {
         const { data, error } = await supabase
             .from('Clientes')
-            .update({ nombre_completo, numero_telefono, fecha_nacimiento, genero, notas })
+            // ----- ¡Y LO AÑADIMOS AQUÍ PARA ACTUALIZARLO! -----
+            .update({ nombre_completo, numero_telefono, fecha_nacimiento, genero, notas, email })
             .eq('id', id)
             .select()
             .single();
