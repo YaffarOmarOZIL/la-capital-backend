@@ -60,14 +60,22 @@ router.post('/', isAuthenticated, [
 // --- 3. ACTUALIZAR un cliente ---
 router.put('/:id', isAuthenticated, async (req, res) => {
     const { id } = req.params;
-    // ----- ¡AQUÍ ESTÁ EL CAMBIO! Ahora también aceptamos 'email' -----
-    const { nombre_completo, numero_telefono, fecha_nacimiento, genero, notas, email } = req.body;
+    const { nombre_completo, numero_telefono, email, fecha_nacimiento, genero, notas, password } = req.body;
 
     try {
+        const updates = { nombre_completo, numero_telefono, email, fecha_nacimiento, genero, notas };
+
+        // ----- ¡LA MAGIA ESTÁ AQUÍ! -----
+        // Si el admin nos mandó una nueva contraseña...
+        if (password) {
+            // ...la encriptamos y la añadimos al objeto que vamos a actualizar.
+            const salt = await bcrypt.genSalt(10);
+            updates.password_hash = await bcrypt.hash(password, salt);
+        }
+
         const { data, error } = await supabase
             .from('Clientes')
-            // ----- ¡Y LO AÑADIMOS AQUÍ PARA ACTUALIZARLO! -----
-            .update({ nombre_completo, numero_telefono, fecha_nacimiento, genero, notas, email })
+            .update(updates) // <-- Actualizamos solo los campos necesarios
             .eq('id', id)
             .select()
             .single();

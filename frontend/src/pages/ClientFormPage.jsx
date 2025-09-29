@@ -19,6 +19,7 @@ function ClientFormPage() {
         initialValues: {
             nombre_completo: '',
             numero_telefono: '',
+            email: '',
             fecha_nacimiento: null, 
             genero: '',
             notas: ''
@@ -37,6 +38,7 @@ function ClientFormPage() {
                 if (!/^[67]\d{7}$/.test(value)) return 'Introduce un número de celular válido de 8 dígitos (ej: 71234567).';
                 return null;
             },
+            email: (value) => (value && /^\S+@\S+\.\S+$/.test(value) ? null : 'Email inválido'),
             notas: (value) => (value.length > 300 ? 'Las notas no pueden exceder los 300 caracteres.' : null),
             fecha_nacimiento: (value) => {
                 // --- TRUCO DE DEPURACIÓN ---
@@ -87,7 +89,6 @@ function ClientFormPage() {
         try {
             const token = localStorage.getItem('authToken');
 
-            // ----- ¡AQUÍ ESTÁ EL ARREGLO! -----
             const payload = {
                 ...values,
                 fecha_nacimiento: values.fecha_nacimiento 
@@ -130,6 +131,11 @@ function ClientFormPage() {
                     {...form.getInputProps('nombre_completo')} 
                     required 
                 />
+
+                <TextInput 
+                    label="Email (para la cuenta)"
+                    placeholder="cliente@email.com" {...form.getInputProps('email')} mt="sm" />
+                
                 
                 <TextInput 
                     label="Número de Teléfono" 
@@ -175,6 +181,7 @@ function ClientFormPage() {
                 {/* --- Botón de envío (sin cambios) --- */}
                 
                 <Group justify="flex-end" mt="md">
+                    <Button variant="default" onClick={() => navigate('/admin/clients')}>Cancelar</Button>
                     <Button type="submit">{isEditing ? 'Actualizar Cliente' : 'Guardar Cliente'}</Button>
                 </Group>
             </form>
