@@ -4,6 +4,7 @@ const router = express.Router();
 const supabase = require('./supabaseClient'); // Corregido para que la ruta sea relativa a la carpeta raíz
 const { isAuthenticated, isAdmin } = require('./authMiddleware'); // Usamos los mismos middlewares que en productos
 const { body, validationResult } = require('express-validator');
+const bcrypt = require('bcryptjs');
 
 // --- 1. LEER TODOS los clientes (con búsqueda) ---
 // Solo el personal autenticado puede ver los clientes.

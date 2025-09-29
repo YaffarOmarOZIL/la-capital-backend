@@ -1,12 +1,13 @@
 // En src/pages/ClientFormPage.jsx
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from '@mantine/form';
-import { TextInput, Button, Box, Group, Title, Select, Textarea } from '@mantine/core';
+import { TextInput, Button, Box, Group, Title, Select, Textarea, PasswordInput, Modal, Text, Divider } from '@mantine/core';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { DateInput } from '@mantine/dates'; // Para la fecha de nacimiento
 import { notifications } from '@mantine/notifications';
+import { useDisclosure } from '@mantine/hooks';
 import dayjs from 'dayjs';
 
 function ClientFormPage() {
@@ -14,12 +15,18 @@ function ClientFormPage() {
     const navigate = useNavigate();
     const isEditing = Boolean(clientId); // Si hay un 'clientId', estamos editando
 
+    // --- Nuevos estados para controlar el flujo de la contraseña ---
+    const [passwordModalOpened, { open: openPasswordModal, close: closePasswordModal }] = useDisclosure(false);
+    const [isPasswordChangeEnabled, setPasswordChangeEnabled] = useState(false);
+
     // --- Configuración del formulario con Mantine ---
     const form = useForm({
         initialValues: {
             nombre_completo: '',
             numero_telefono: '',
             email: '',
+            password: '', // <-- Campo para la nueva contraseña
+            confirmPassword: '', // <-- Campo para confirmarla
             fecha_nacimiento: null, 
             genero: '',
             notas: ''
@@ -40,6 +47,19 @@ function ClientFormPage() {
             },
             email: (value) => (value && /^\S+@\S+\.\S+$/.test(value) ? null : 'Email inválido'),
             notas: (value) => (value.length > 300 ? 'Las notas no pueden exceder los 300 caracteres.' : null),
+            password: (value) => {
+                // Solo validamos la contraseña si hemos habilitado el cambio.
+                if (isPasswordChangeEnabled && value.length < 8) {
+                    return 'La nueva contraseña debe tener al menos 8 caracteres.';
+                }
+                return null;
+            },
+            confirmPassword: (value, values) => {
+                if (isPasswordChangeEnabled && value !== values.password) {
+                    return 'Las contraseñas no coinciden.';
+                }
+                return null;
+            },
             fecha_nacimiento: (value) => {
                 // --- TRUCO DE DEPURACIÓN ---
                 // Abre la consola del navegador (F12) para ver esto en acción.
@@ -85,16 +105,26 @@ function ClientFormPage() {
         }
     }, [isEditing, clientId]);
 
+    const handleEnablePasswordChange = () => {
+        setPasswordChangeEnabled(true);
+        closePasswordModal();
+    };
+
     const handleSubmit = async (values) => {
         try {
             const token = localStorage.getItem('authToken');
 
             const payload = {
-                ...values,
-                fecha_nacimiento: values.fecha_nacimiento 
-                    ? dayjs(values.fecha_nacimiento).format('YYYY-MM-DD') 
-                    : null,
+                nombre_completo: values.nombre_completo,
+                numero_telefono: values.numero_telefono,
+                email: values.email,
+                genero: values.genero,
+                notas: values.notas,
+                fecha_nacimiento: values.fecha_nacimiento ? dayjs(values.fecha_nacimiento).format('YYYY-MM-DD') : null,
             };
+            if (isPasswordChangeEnabled && values.password) {
+                payload.password = values.password;
+            }
 
             if (isEditing) {
                 const apiUrl = `${import.meta.env.VITE_API_BASE_URL}/api/clients/${clientId}`;
@@ -121,6 +151,14 @@ function ClientFormPage() {
 
     return (
         <Box maw={500} mx="auto">
+            <Modal opened={passwordModalOpened} onClose={closePasswordModal} title="Confirmación de Seguridad" centered>
+                <Text>Estás a punto de establecer una nueva contraseña para este cliente.</Text>
+                <Text c="red" fw={700} mt="sm">La contraseña actual se perderá para siempre. ¿Estás seguro?</Text>
+                <Group justify="flex-end" mt="xl">
+                    <Button variant="default" onClick={closePasswordModal}>Cancelar</Button>
+                    <Button color="red" onClick={handleEnablePasswordChange}>Sí, establecer nueva</Button>
+                </Group>
+            </Modal>
             <Title order={2} mb="lg">
                 {isEditing ? 'Editar Cliente' : 'Añadir Nuevo Cliente'}
             </Title>
@@ -177,6 +215,17 @@ function ClientFormPage() {
                 {...form.getInputProps('notas')}
                 mt="sm"
                 />
+
+                <Divider label="Gestión de Contraseña" my="lg" />
+
+                {!isPasswordChangeEnabled ? (
+                    <Button variant="outline" onClick={openPasswordModal}>Establecer Nueva Contraseña</Button>
+                ) : (
+                    <>
+                        <PasswordInput label="Nueva Contraseña" placeholder="Nueva contraseña" {...form.getInputProps('password')} required />
+                        <PasswordInput label="Confirmar Nueva Contraseña" placeholder="Repite la contraseña" {...form.getInputProps('confirmPassword')} mt="md" required />
+                    </>
+                )}   
                 
                 {/* --- Botón de envío (sin cambios) --- */}
                 
