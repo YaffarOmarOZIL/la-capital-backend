@@ -21,21 +21,23 @@ router.post(
             return res.status(400).json({ errors: errors.array() });
         }
 
-        const { nombre_completo, email, password, numero_telefono } = req.body;
+        // ----- ¡LA MAGIA! Ahora también recibimos estos campos opcionales -----
+        const { nombre_completo, email, password, numero_telefono, fecha_nacimiento, genero } = req.body;
 
         try {
-            // 1. Encriptamos la contraseña (esto se queda igual)
             const salt = await bcrypt.genSalt(10);
             const password_hash = await bcrypt.hash(password, salt);
 
-            // ----- ¡LA MAGIA! Ahora insertamos TODO en una sola tabla -----
+            // ¡Ahora los incluimos en la inserción a la base de datos!
             const { data, error } = await supabase
-                .from('Clientes') // <-- La única tabla que nos importa
+                .from('Clientes')
                 .insert({
                     nombre_completo,
                     numero_telefono,
-                    email, // <-- El nuevo campo de email
-                    password_hash // <-- La nueva contraseña encriptada
+                    email,
+                    password_hash,
+                    fecha_nacimiento, // <-- Nuevo
+                    genero            // <-- Nuevo
                 })
                 .select('id, nombre_completo, email, created_at')
                 .single();
