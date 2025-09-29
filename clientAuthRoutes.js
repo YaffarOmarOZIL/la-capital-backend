@@ -1,15 +1,15 @@
-// En /la_capital_fidelizacion/clientAuthRoutes.js
+// En /la_capital_fidelizacion/clientAuthRoutes.js (Versión 2.0 - Simple y Correcta)
+
 const express = require('express');
 const router = express.Router();
 const supabase = require('./supabaseClient');
 const bcrypt = require('bcryptjs');
 const { body, validationResult } = require('express-validator');
 
-// --- RUTA DE REGISTRO PARA CLIENTES ---
 router.post(
     '/register',
     [
-        // Validaciones súper importantes en el backend
+        // Tus validaciones están perfectas
         body('nombre_completo').not().isEmpty().trim().escape().withMessage('El nombre es requerido.'),
         body('email').isEmail().normalizeEmail().withMessage('Por favor, introduce un email válido.'),
         body('numero_telefono').not().isEmpty().trim().withMessage('El número de teléfono es requerido.'),
@@ -24,37 +24,31 @@ router.post(
         const { nombre_completo, email, password, numero_telefono } = req.body;
 
         try {
-            // 1. Encriptamos la contraseña (¡Nunca se guarda en texto plano!)
+            // 1. Encriptamos la contraseña (esto se queda igual)
             const salt = await bcrypt.genSalt(10);
             const password_hash = await bcrypt.hash(password, salt);
 
-            // 2. Primero, creamos el perfil del cliente en la tabla 'Clientes'
-            const { data: clienteData, error: clienteError } = await supabase
-                .from('Clientes')
-                .insert({ nombre_completo, numero_telefono })
-                .select()
+            // ----- ¡LA MAGIA! Ahora insertamos TODO en una sola tabla -----
+            const { data, error } = await supabase
+                .from('Clientes') // <-- La única tabla que nos importa
+                .insert({
+                    nombre_completo,
+                    numero_telefono,
+                    email, // <-- El nuevo campo de email
+                    password_hash // <-- La nueva contraseña encriptada
+                })
+                .select('id, nombre_completo, email, created_at')
                 .single();
 
-            if (clienteError) throw clienteError;
-
-            // 3. Ahora, creamos la cuenta de acceso con la contraseña encriptada
-            const { data: cuentaData, error: cuentaError } = await supabase
-                .from('CuentasCliente')
-                .insert({ email, password_hash, id_cliente: clienteData.id })
-                .select('id, email, created_at')
-                .single();
-            
-            if (cuentaError) {
-                // Si la cuenta falla (ej: email duplicado), borramos el cliente que acabamos de crear para no dejar basura.
-                await supabase.from('Clientes').delete().eq('id', clienteData.id);
-                if (cuentaError.code === '23505') {
-                    return res.status(409).json({ message: 'Este correo electrónico ya está registrado.' });
+            if (error) {
+                // El error de "email o teléfono duplicado" se maneja igual
+                if (error.code === '23505') {
+                    return res.status(409).json({ message: 'Este correo o teléfono ya está registrado.' });
                 }
-                throw cuentaError;
+                throw error;
             }
 
-            // ¡Si todo sale bien, respondemos con éxito!
-            res.status(201).json({ message: '¡Cuenta creada con éxito!', user: cuentaData });
+            res.status(201).json({ message: '¡Cuenta creada con éxito!', user: data });
 
         } catch (error) {
             console.error('Error en el registro de cliente:', error);
@@ -62,5 +56,7 @@ router.post(
         }
     }
 );
+
+// Aquí añadiremos el '/login' del cliente en el futuro
 
 module.exports = router;
