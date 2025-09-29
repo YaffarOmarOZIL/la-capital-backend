@@ -1,18 +1,35 @@
-/* En src/pages/ClientAuth.module.css */
+/* En src/pages/ClientAuth.module.css (Versión 2.0) */
 .wrapper {
     min-height: 100vh;
-    background: linear-gradient(-45deg, var(--mantine-color-brand-yellow-8), var(--mantine-color-dark-8), var(--mantine-color-brand-yellow-6), var(--mantine-color-dark-6));
-    background-size: 400% 400%;
-    animation: gradientShift 15s ease infinite;
+    display: flex; /* <-- La clave para las columnas */
+    background-color: var(--mantine-color-body);
 }
 
-@keyframes gradientShift { /* ... el mismo de antes ... */ }
+.formPaper {
+    flex: 1; /* <-- Ocupa el espacio disponible */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    border: none;
+    box-shadow: none; /* Quitamos sombras extra si no las queremos */
+}
+
+.image {
+    flex: 1; /* <-- Ocupa la otra mitad del espacio */
+    background-size: cover;
+    background-position: center;
+}
 
 .link {
     color: var(--mantine-color-brand-yellow-5);
     font-weight: bold;
-    text-decoration: none;
 }
-.link:hover {
-    text-decoration: underline;
+.link:hover { text-decoration: underline; }
+
+/* --- MAGIA RESPONSIVA --- */
+/* En pantallas pequeñas (móviles), la imagen se oculta */
+@media (max-width: 768px) {
+    .image {
+        display: none;
+    }
 }

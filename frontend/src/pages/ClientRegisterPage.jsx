@@ -1,14 +1,19 @@
-// En src/pages/ClientRegisterPage.jsx
+// En src/pages/ClientRegisterPage.jsx (Versión 2.0 - Diseño Profesional)
 
 import { useForm } from '@mantine/form';
-import { TextInput, PasswordInput, Button, Paper, Title, Text, Container, Group, Box } from '@mantine/core';
+import { TextInput, PasswordInput, Button, Paper, Title, Text, Container, Group, SimpleGrid, Image, Select } from '@mantine/core';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { notifications } from '@mantine/notifications';
-import classes from './ClientAuth.module.css'; // Un CSS para el estilo
+import { DateInput } from '@mantine/dates';
+import dayjs from 'dayjs';
+import classes from './ClientAuth.module.css';
+import hamburguesaFotoVertical from '../assets/hamburguesa_foto_4.jpg'; // <-- ¡Tu foto!
 
 function ClientRegisterPage() {
     const navigate = useNavigate();
+
+    // ----- El Formulario, ahora con los nuevos campos y validaciones -----
     const form = useForm({
         initialValues: {
             nombre_completo: '',
@@ -16,6 +21,8 @@ function ClientRegisterPage() {
             numero_telefono: '',
             password: '',
             confirmPassword: '',
+            fecha_nacimiento: null,
+            genero: '',
         },
         validate: {
             nombre_completo: (value) => {
@@ -41,13 +48,27 @@ function ClientRegisterPage() {
             
             password: (value) => (value.length < 8 ? 'La contraseña debe tener al menos 8 caracteres' : null),
             confirmPassword: (value, values) => (value !== values.password ? 'Las contraseñas no coinciden' : null),
+            fecha_nacimiento: (value) => {
+                if (!value) return null; // Es opcional
+                const today = new Date();
+                const tooOld = new Date();
+                tooOld.setFullYear(tooOld.getFullYear() - 110);
+
+                if (value > today) return 'No puedes nacer en el futuro.';
+                if (value < tooOld) return 'La fecha parece demasiado antigua.';
+                return null;
+            },
         },
     });
 
     const handleSubmit = async (values) => {
         try {
+            const payload = {
+                ...values,
+                fecha_nacimiento: values.fecha_nacimiento ? dayjs(values.fecha_nacimiento).format('YYYY-MM-DD') : null
+            };
             const apiUrl = `${import.meta.env.VITE_API_BASE_URL}/api/client-auth/register`;
-            await axios.post(apiUrl, values);
+            await axios.post(apiUrl, payload);
 
             notifications.show({
                 title: '¡Bienvenido a La Capital!',
@@ -64,26 +85,40 @@ function ClientRegisterPage() {
         }
     };
 
-    return (
-        <div className={classes.wrapper}>
-            <Container size={420} my={40}>
-                <Title ta="center">¡Únete a la Familia!</Title>
-                <Text c="dimmed" size="sm" ta="center" mt={5}>
-                    ¿Ya tienes una cuenta?{' '}
-                    <Link to="/login-cliente" className={classes.link}>Inicia Sesión</Link>
-                </Text>
+    const maxDate = new Date(); // Límite para que no se pueda seleccionar el futuro
+    const minDate = new Date(); // Límite para que no se pueda seleccionar más de 110 años
+    minDate.setFullYear(minDate.getFullYear() - 110);
 
-                <Paper withBorder shadow="md" p={30} mt={30} radius="md">
+     return (
+        <div className={classes.wrapper}>
+            <Paper className={classes.formPaper} shadow="md" radius={0}>
+                <Container size={420} my={40}>
+                    <Title ta="center">¡Únete a la Familia!</Title>
+                    <Text c="dimmed" size="sm" ta="center" mt={5}>
+                        ¿Ya tienes una cuenta?{' '}
+                        <Link to="/login-cliente" className={classes.link}>Inicia Sesión</Link>
+                    </Text>
+
                     <form onSubmit={form.onSubmit(handleSubmit)}>
-                        <TextInput label="Nombre Completo" placeholder="Tu nombre" {...form.getInputProps('nombre_completo')} required />
-                        <TextInput label="Email" placeholder="tu@email.com" {...form.getInputProps('email')} mt="md" required />
-                        <TextInput label="Número de Teléfono" placeholder="71234567" {...form.getInputProps('numero_telefono')} mt="md" />
-                        <PasswordInput label="Contraseña" placeholder="Tu contraseña" {...form.getInputProps('password')} mt="md" required />
-                        <PasswordInput label="Confirmar Contraseña" placeholder="Repite tu contraseña" {...form.getInputProps('confirmPassword')} mt="md" required />
+                        {/* El formulario ahora incluye los nuevos campos */}
+                        <TextInput label="Nombre Completo" {...form.getInputProps('nombre_completo')} required />
+                        <TextInput label="Email" {...form.getInputProps('email')} mt="md" required />
+                        <TextInput label="Número de Teléfono" {...form.getInputProps('numero_telefono')} mt="md" />
+                        
+                        <SimpleGrid cols={2} mt="md">
+                            <DateInput label="Fecha de Nacimiento" valueFormat="DD/MM/YYYY" {...form.getInputProps('fecha_nacimiento')} maxDate={maxDate} minDate={minDate} />
+                            <Select label="Género" data={['Masculino', 'Femenino', 'Otro', 'Prefiero no decir']} {...form.getInputProps('genero')} />
+                        </SimpleGrid>
+
+                        <PasswordInput label="Contraseña" {...form.getInputProps('password')} mt="md" required />
+                        <PasswordInput label="Confirmar Contraseña" {...form.getInputProps('confirmPassword')} mt="md" required />
+                        
                         <Button fullWidth mt="xl" type="submit">Registrarme</Button>
                     </form>
-                </Paper>
-            </Container>
+                </Container>
+            </Paper>
+            {/* ----- LA IMAGEN ELEGANTE A LA DERECHA ----- */}
+            <div className={classes.image} style={{ backgroundImage: `url(${hamburguesaFotoVertical})` }} />
         </div>
     );
 }

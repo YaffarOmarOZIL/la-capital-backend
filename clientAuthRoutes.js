@@ -59,6 +59,54 @@ router.post(
     }
 );
 
+// --- RUTA DE LOGIN PARA CLIENTES ---
+router.post('/login', [
+    body('email').isEmail().normalizeEmail().withMessage('El email no es válido.'),
+    body('password').not().isEmpty().withMessage('La contraseña es requerida.')
+], async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { email, password } = req.body;
+
+    try {
+        // 1. Buscamos al cliente por su email
+        const { data: cliente, error: findError } = await supabase
+            .from('Clientes')
+            .select('id, password_hash') // Pedimos solo el id y la contraseña encriptada
+            .eq('email', email)
+            .single();
+
+        // Si no encontramos el email O si el cliente no tiene contraseña guardada, damos error.
+        if (findError || !cliente || !cliente.password_hash) {
+            return res.status(401).json({ message: 'Credenciales inválidas.' });
+        }
+
+        // 2. Comparamos la contraseña que nos mandan con la que está en la BDD
+        const isMatch = await bcrypt.compare(password, cliente.password_hash);
+
+        if (!isMatch) {
+            return res.status(401).json({ message: 'Credenciales inválidas.' }); // ¡Mismo error por seguridad!
+        }
+        
+        // 3. ¡Creamos el pasaporte VIP (JWT)!
+        const payload = {
+            id: cliente.id,
+            role: 'Cliente' // Un rol específico para diferenciarlo de los empleados
+        };
+
+        const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' }); // El pasaporte dura 7 días
+
+        res.json({ token });
+
+    } catch (error) {
+        console.error("Error en el login de cliente:", error);
+        res.status(500).json({ message: "Error en el servidor." });
+    }
+});
+
 // Aquí añadiremos el '/login' del cliente en el futuro
 
 module.exports = router;

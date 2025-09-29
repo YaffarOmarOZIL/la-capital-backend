@@ -20,6 +20,7 @@ import ClientFormPage from './pages/ClientFormPage';
 import ProductSpritePage from './pages/ProductSpritePage'; 
 import ARViewerPage from './pages/ARViewerPage';
 import ClientRegisterPage from './pages/ClientRegisterPage';
+import ClientLoginPage from './pages/ClientLoginPage';
 
 function App() {
   return (
@@ -31,6 +32,8 @@ function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/ar-viewer/:productId" element={<ARViewerPage />} />
         <Route path="/registro-cliente" element={<ClientRegisterPage />} />
+        <Route path="/login-cliente" element={<ClientLoginPage />} />
+        
 
         {/* --- 2. ÁREA DE ADMINISTRACIÓN (PRIVADA) --- */}
         <Route 
