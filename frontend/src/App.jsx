@@ -23,6 +23,7 @@ import ClientRegisterPage from './pages/ClientRegisterPage';
 import ClientLoginPage from './pages/ClientLoginPage';
 import ClientPrivateRoute from './components/ClientPrivateRoute';
 import ClientExperiencePage from './pages/ClientExperiencePage';
+import ManualImageEditorPage from './pages/ManualImageEditorPage';
 
 function App() {
   return (
@@ -66,6 +67,7 @@ function App() {
           <Route path="clients/create" element={<ClientFormPage />} />
           <Route path="clients/edit/:clientId" element={<ClientFormPage />} />
           <Route path="products/sprites/:id" element={<ProductSpritePage />} /> 
+          <Route path="/admin/products/sprites/edit/:productId/:vistaId" element={<ManualImageEditorPage />} />
         </Route>
         
       </Routes>
