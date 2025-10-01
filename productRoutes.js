@@ -9,18 +9,19 @@ const { body, validationResult } = require('express-validator');
 // 1. PRIMERO, la ruta MÁS ESPECÍFICA ('/public/with-ar')
 router.get('/public/with-ar', async (req, res) => {
     try {
-        // La consulta estaba casi perfecta, solo un pequeño ajuste de robustez
         const { data, error } = await supabase
             .from('Productos')
+            // ¡La magia está aquí! El '!inner' ya hace todo el trabajo de filtrado por nosotros.
             .select('id, nombre, descripcion, categoria, ActivosDigitales!inner(urls_imagenes)')
-            .eq('activo', true)
-            .not('ActivosDigitales', 'is', null); // <-- Un extra de seguridad
-            
+            .eq('activo', true); // <-- Solo filtramos por los productos que están activos
+
         if (error) throw error;
+        
+        // Si no encuentra nada, simplemente devolverá un array vacío, lo cual es correcto.
         res.json(data);
     } catch(err) { 
         console.error("Error al cargar productos con AR:", err);
-        res.status(500).json({ message: 'Error al cargar productos.' }) 
+        res.status(500).json({ message: 'Error al cargar los productos con AR.' });
     }
 });
 
