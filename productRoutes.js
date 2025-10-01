@@ -4,6 +4,47 @@ const supabase = require('./supabaseClient');
 const { isAuthenticated, isAdmin } = require('./authMiddleware');
 const { body, validationResult } = require('express-validator');
 
+// --- RUTAS PÚBLICAS (Para los clientes) ---
+
+// 1. PRIMERO, la ruta MÁS ESPECÍFICA ('/public/with-ar')
+router.get('/public/with-ar', async (req, res) => {
+    try {
+        // La consulta estaba casi perfecta, solo un pequeño ajuste de robustez
+        const { data, error } = await supabase
+            .from('Productos')
+            .select('id, nombre, descripcion, categoria, ActivosDigitales!inner(urls_imagenes)')
+            .eq('activo', true)
+            .not('ActivosDigitales', 'is', null); // <-- Un extra de seguridad
+            
+        if (error) throw error;
+        res.json(data);
+    } catch(err) { 
+        console.error("Error al cargar productos con AR:", err);
+        res.status(500).json({ message: 'Error al cargar productos.' }) 
+    }
+});
+
+// 2. Y DESPUÉS, la ruta DINÁMICA ('/public/:id')
+router.get('/public/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        // Si por error 'with-ar' llega aquí, no es un número, así que fallará
+        if (isNaN(id)) {
+            return res.status(404).json({ message: 'ID de producto inválido.' });
+        }
+        const { data, error } = await supabase
+            .from('Productos')
+            .select('*, ActivosDigitales ( urls_imagenes )')
+            .eq('id', id)
+            .single();
+
+        if (error || !data) throw new Error('Producto no encontrado.');
+        res.json(data);
+    } catch (error) {
+        res.status(404).json({ message: "Producto no encontrado." });
+    }
+});
+
 // --- 1. LEER TODOS los productos ---
 // Cualquiera que esté logueado puede ver la lista.
 router.get('/', isAuthenticated, async (req, res) => {
@@ -144,80 +185,5 @@ router.delete('/:id', isAdmin, async (req, res) => {
     }
 });
 
-// --- NUEVA RUTA PÚBLICA PARA EL VISOR AR ---
-// ¡Sin middleware de autenticación, para que cualquiera con el enlace pueda verla!
-router.get('/public/:id', async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { data, error } = await supabase
-            .from('Productos')
-            .select('*, ActivosDigitales ( urls_imagenes )') // Pedimos el producto y sus imágenes
-            .eq('id', id)
-            .single();
-
-        if (error || !data) throw new Error('Producto no encontrado.');
-        
-        res.json(data);
-    } catch (error) {
-        console.error(`Error al obtener producto público ${req.params.id}:`, error);
-        res.status(404).json({ message: "Producto no encontrado." });
-    }
-});
-
-// --- NUEVA RUTA PÚBLICA PARA LA GALERÍA ---
-router.get('/public/with-ar', async (req, res) => {
-    try {
-        const { data, error } = await supabase
-            .from('Productos')
-            .select('id, nombre, descripcion, categoria, ActivosDigitales!inner(urls_imagenes)')
-            .eq('activo', true) // Solo productos activos
-            // '!inner' asegura que solo vengan productos que SÍ tienen un activo digital asociado
-            
-        if (error) throw error;
-        res.json(data);
-    } catch(err) { res.status(500).json({ message: 'Error al cargar productos.' }) }
-});
-
-
-// --- RUTAS PÚBLICAS (Para los clientes) ---
-
-// 1. PRIMERO, la ruta MÁS ESPECÍFICA ('/public/with-ar')
-router.get('/public/with-ar', async (req, res) => {
-    try {
-        // La consulta estaba casi perfecta, solo un pequeño ajuste de robustez
-        const { data, error } = await supabase
-            .from('Productos')
-            .select('id, nombre, descripcion, categoria, ActivosDigitales!inner(urls_imagenes)')
-            .eq('activo', true)
-            .not('ActivosDigitales', 'is', null); // <-- Un extra de seguridad
-            
-        if (error) throw error;
-        res.json(data);
-    } catch(err) { 
-        console.error("Error al cargar productos con AR:", err);
-        res.status(500).json({ message: 'Error al cargar productos.' }) 
-    }
-});
-
-// 2. Y DESPUÉS, la ruta DINÁMICA ('/public/:id')
-router.get('/public/:id', async (req, res) => {
-    try {
-        const { id } = req.params;
-        // Si por error 'with-ar' llega aquí, no es un número, así que fallará
-        if (isNaN(id)) {
-            return res.status(404).json({ message: 'ID de producto inválido.' });
-        }
-        const { data, error } = await supabase
-            .from('Productos')
-            .select('*, ActivosDigitales ( urls_imagenes )')
-            .eq('id', id)
-            .single();
-
-        if (error || !data) throw new Error('Producto no encontrado.');
-        res.json(data);
-    } catch (error) {
-        res.status(404).json({ message: "Producto no encontrado." });
-    }
-});
 
 module.exports = router;
