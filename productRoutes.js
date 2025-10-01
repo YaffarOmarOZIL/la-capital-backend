@@ -181,27 +181,38 @@ router.get('/public/with-ar', async (req, res) => {
 
 // --- RUTAS PÚBLICAS (Para los clientes) ---
 
-// Para la Galería de Experiencia Cliente
+// 1. PRIMERO, la ruta MÁS ESPECÍFICA ('/public/with-ar')
 router.get('/public/with-ar', async (req, res) => {
     try {
+        // La consulta estaba casi perfecta, solo un pequeño ajuste de robustez
         const { data, error } = await supabase
             .from('Productos')
             .select('id, nombre, descripcion, categoria, ActivosDigitales!inner(urls_imagenes)')
-            .eq('activo', true);
+            .eq('activo', true)
+            .not('ActivosDigitales', 'is', null); // <-- Un extra de seguridad
+            
         if (error) throw error;
         res.json(data);
-    } catch(err) { res.status(500).json({ message: 'Error al cargar productos.' }) }
+    } catch(err) { 
+        console.error("Error al cargar productos con AR:", err);
+        res.status(500).json({ message: 'Error al cargar productos.' }) 
+    }
 });
 
-// Para el Visor AR de un solo producto
+// 2. Y DESPUÉS, la ruta DINÁMICA ('/public/:id')
 router.get('/public/:id', async (req, res) => {
     try {
         const { id } = req.params;
+        // Si por error 'with-ar' llega aquí, no es un número, así que fallará
+        if (isNaN(id)) {
+            return res.status(404).json({ message: 'ID de producto inválido.' });
+        }
         const { data, error } = await supabase
             .from('Productos')
             .select('*, ActivosDigitales ( urls_imagenes )')
             .eq('id', id)
             .single();
+
         if (error || !data) throw new Error('Producto no encontrado.');
         res.json(data);
     } catch (error) {
