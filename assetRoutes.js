@@ -53,4 +53,43 @@ router.post('/products/:productId/assets/images', isAdmin, upload.fields(imageUp
     }
 });
 
+router.put('/products/:productId/assets/qr', isAdmin, async (req, res) => {
+    const { productId } = req.params;
+    const { qrCodeDataUrl } = req.body; // <-- Recibimos el QR en Base64
+
+    if (!qrCodeDataUrl) {
+        return res.status(400).json({ message: 'No se proporcionó la imagen del código QR.' });
+    }
+
+    try {
+        const buffer = Buffer.from(qrCodeDataUrl.replace(/^data:image\/png;base64,/, ''), 'base64');
+        const fileName = `qr_producto_${productId}.png`;
+
+        // 1. Subimos el QR a nuestro nuevo bucket "qrcodes"
+        const { error: uploadError } = await supabase.storage
+            .from('qrcodes')
+            .upload(fileName, buffer, { contentType: 'image/png', upsert: true });
+        
+        if (uploadError) throw uploadError;
+
+        // 2. Obtenemos su URL pública
+        const { data: urlData } = supabase.storage.from('qrcodes').getPublicUrl(fileName);
+        const publicUrl = urlData.publicUrl;
+
+        // 3. Actualizamos la tabla 'ActivosDigitales' con la nueva URL del QR
+        const { data: dbData, error: dbError } = await supabase
+            .from('ActivosDigitales')
+            .upsert({ id_producto: productId, url_qr_code: publicUrl }, { onConflict: 'id_producto' })
+            .select()
+            .single();
+
+        if (dbError) throw dbError;
+
+        res.json({ message: 'Código QR guardado correctamente.', asset: dbData });
+    } catch (error) {
+        console.error("Error al guardar el QR:", error);
+        res.status(500).json({ message: 'Error en el servidor al guardar el QR.' });
+    }
+});
+
 module.exports = router;
