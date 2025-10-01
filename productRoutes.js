@@ -178,4 +178,35 @@ router.get('/public/with-ar', async (req, res) => {
     } catch(err) { res.status(500).json({ message: 'Error al cargar productos.' }) }
 });
 
+
+// --- RUTAS PÚBLICAS (Para los clientes) ---
+
+// Para la Galería de Experiencia Cliente
+router.get('/public/with-ar', async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from('Productos')
+            .select('id, nombre, descripcion, categoria, ActivosDigitales!inner(urls_imagenes)')
+            .eq('activo', true);
+        if (error) throw error;
+        res.json(data);
+    } catch(err) { res.status(500).json({ message: 'Error al cargar productos.' }) }
+});
+
+// Para el Visor AR de un solo producto
+router.get('/public/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { data, error } = await supabase
+            .from('Productos')
+            .select('*, ActivosDigitales ( urls_imagenes )')
+            .eq('id', id)
+            .single();
+        if (error || !data) throw new Error('Producto no encontrado.');
+        res.json(data);
+    } catch (error) {
+        res.status(404).json({ message: "Producto no encontrado." });
+    }
+});
+
 module.exports = router;

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Title, Text, Button, Container, SimpleGrid, Card, Image, Group, Badge, AspectRatio } from '@mantine/core';
+import { Title, Text, Button, Container, SimpleGrid, Card, Image, Group, Badge, AspectRatio, Stack } from '@mantine/core';
 import { useClientAuth } from '../hooks/useClientAuth';
 import { Link } from 'react-router-dom';
 import { IconLogout, IconScan } from '@tabler/icons-react';
