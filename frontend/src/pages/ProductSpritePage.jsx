@@ -3,11 +3,12 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Title, Text, Paper, Button, Group, Loader, Center, SimpleGrid, FileButton, Image, Box, Stack, Modal } from '@mantine/core';
+import { Title, Text, Paper, Button, Group, Loader, Center, SimpleGrid, FileButton, Image, Box, Stack, Modal, Progress } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
-import { IconUpload, IconCamera, IconTrash } from '@tabler/icons-react';
+import { IconUpload, IconCamera, IconPhotoOff, IconEdit } from '@tabler/icons-react';
 import ImageEditor from '../components/ImageEditor';
+import { removeBackground } from '@imgly/background-removal'; // <-- La magia de la IA
 
 // Definimos los "slots" de imágenes que nuestro estudio tendrá
 const VISTAS = [
@@ -19,6 +20,27 @@ const VISTAS = [
     { id: 'arriba', label: 'Desde Arriba (Cenital)' },
 ];
 
+const resizeImage = (file, maxSize = 1024) => {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.src = URL.createObjectURL(file);
+        img.onload = () => {
+            let { width, height } = img;
+            if (width > height) {
+                if (width > maxSize) { height *= maxSize / width; width = maxSize; }
+            } else {
+                if (height > maxSize) { width *= maxSize / height; height = maxSize; }
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = width; canvas.height = height;
+            canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+            canvas.toBlob((blob) => {
+                resolve(new File([blob], file.name.split('.')[0] + '.png', { type: 'image/png' }));
+            }, 'image/png', 0.9);
+        };
+    });
+};
+
 function ProductSpritePage() {
     const { id: productId } = useParams();
     const navigate = useNavigate();
@@ -27,99 +49,111 @@ function ProductSpritePage() {
     const [uploading, setUploading] = useState(false);
     
     // Estados para las imágenes
-    const [files, setFiles] = useState({});
+    const [filesToUpload, setFilesToUpload] = useState({});
     const [previews, setPreviews] = useState({});
     const [existingImages, setExistingImages] = useState({});
 
-    // Modal para la IA de quitar fondo
-    const [aiEditorModalOpened, { open: openAiEditorModal, close: closeAiEditorModal }] = useDisclosure(false);
-    const [editingImage, setEditingImage] = useState({ vistaId: null, file: null });
-
-    // ----- ¡AQUÍ ESTÁ LA NUEVA LÓGICA! -----
-    // Modal para el editor manual
-    const [manualEditorModalOpened, { open: openManualEditorModal, close: closeManualEditorModal }] = useDisclosure(false);
-    const [manualEditInfo, setManualEditInfo] = useState({ vistaId: null, file: null });
-
-    const handleEditManual = async (vistaId) => {
-        const imageUrl = previews[vistaId] || existingImages[vistaId];
-        if (imageUrl) {
-            try {
-                // Convertimos la URL de la imagen a un objeto File, porque nuestro editor lo necesita
-                const response = await fetch(imageUrl);
-                const blob = await response.blob();
-                const file = new File([blob], `${vistaId}-manual.png`, { type: 'image/png' });
-                
-                // Guardamos el archivo y la vista que estamos editando
-                setManualEditInfo({ vistaId, file });
-                // ¡Y abrimos el MODAL de edición manual, en lugar de navegar!
-                openManualEditorModal();
-            } catch (error) {
-                notifications.show({ title: 'Error', message: 'No se pudo cargar la imagen para editar.', color: 'red'});
-            }
-        }
-    };
+    // ----- ¡EL NUEVO ESTADO UNIFICADO PARA EL MODAL! -----
+    const [images, setImages] = useState({}); // Contendrá { preview: '...', file: File, source: 'db'/'new' }
+    const [modal, setModal] = useState({ opened: false, vistaId: null, file: null, mode: null });
+    const [isProcessingAI, setIsProcessingAI] = useState(false);
 
     useEffect(() => {
-        const fetchProductData = async () => {
+        // Definimos la función principal que se ejecutará al cargar
+        const initializePage = async () => {
+            // Primero, siempre cargamos los datos del producto
             try {
                 const token = localStorage.getItem('authToken');
                 const apiUrl = `${import.meta.env.VITE_API_BASE_URL}/api/products/${productId}`;
-                const { data } = await axios.get(apiUrl, { headers: { Authorization: `Bearer ${token}` }});
+                const { data } = await axios.get(apiUrl, { headers: { Authorization: `Bearer ${token}` } });
                 setProduct(data);
                 if (data.ActivosDigitales?.urls_imagenes) {
                     setExistingImages(data.ActivosDigitales.urls_imagenes);
                 }
             } catch (error) {
                 notifications.show({ title: 'Error', message: 'No se pudo cargar el producto.', color: 'red' });
-            } finally {
-                setLoading(false);
             }
-        };
-        fetchProductData();
-    }, [productId]); // <-- Solo depende del productId
 
-    // ----- useEffect #2: ¡El "Recogedor" de imágenes editadas! -----
-    useEffect(() => {
-        const checkEditedImage = async () => {
+            // Después, revisamos si hay una imagen editada esperando
             const editedImageData = sessionStorage.getItem('editedImage');
             if (editedImageData) {
                 try {
                     const { vistaId, fileData } = JSON.parse(editedImageData);
-
-                    // Convertimos la imagen de vuelta a un archivo
                     const base64Response = await fetch(fileData);
                     const blob = await base64Response.blob();
                     const file = new File([blob], `${vistaId}.png`, { type: 'image/png' });
-
-                    // Usamos la lógica de handleProcessComplete directamente aquí
-                    setFiles(prev => ({ ...prev, [vistaId]: file }));
-                    setPreviews(prev => ({ ...prev, [vistaId]: URL.createObjectURL(file) }));
                     
+                    // Actualizamos los estados con la nueva imagen editada
+                    setFilesToUpload(prev => ({ ...prev, [vistaId]: file }));
+                    setPreviews(prev => ({ ...prev, [vistaId]: URL.createObjectURL(file) }));
+
                 } catch (error) {
                     console.error("Error al procesar la imagen editada:", error);
                 } finally {
-                    // ¡Importante! Limpiamos el almacenamiento para no volver a cogerla por error
                     sessionStorage.removeItem('editedImage');
-                    closeEditorModal(); // Cierra el modal de IA si estuviera abierto
                 }
             }
+
+            setLoading(false); // Ponemos el loading en false al final de TODO
         };
 
-        checkEditedImage();
-    }, []); // <-- El array vacío asegura que esto solo se ejecute una vez al montar
-    
+        initializePage();
+    }, [productId]); // <-- El único dependiente real es el ID del producto
 
-    const handleFileChange = (file, vistaId) => {
+    const handleFileChange = async (file, vistaId) => {
         if (!file) return;
-        setEditingImage({ vistaId, file });
-        openAiEditorModal();
+        const resizedFile = await resizeImage(file);
+        setModal({ opened: true, vistaId, file: resizedFile, mode: 'chooser' });
     };
+    
+    const handleEditManual = async () => {
+        // Obtenemos el archivo desde el estado del modal, ¡no desde un nuevo fetch!
+        const fileToEdit = modalState.file;
+        const vistaId = modalState.vistaId;
+
+        if (fileToEdit) {
+            setModalState(prev => ({ ...prev, file: fileToEdit, vistaId: vistaId, mode: 'canvas' }));
+        }
+    };
+
+    // INICIA el proceso con la IA
+    const handleAIProcess = async () => {
+        setIsProcessingAI(true);
+        try {
+            const blob = await removeBackground(modal.file);
+            const finalFile = new File([blob], modal.file.name, { type: 'image/png' });
+            onProcessComplete(finalFile, modal.vistaId);
+        } finally {
+            setIsProcessingAI(false);
+        }
+    };
+
+    const handleManualProcess = () => setModal(prev => ({ ...prev, mode: 'canvas' }));
+
+    const handleRemoveBackgroundAI = async () => {
+        setIsProcessingAI(true);
+        try {
+            const processedBlob = await removeBackground(editingInfo.file);
+            const processedFile = new File([processedBlob], editingInfo.file.name, { type: 'image/png' });
+            // ¡Llamamos a la función final para guardar el resultado!
+            handleProcessComplete(processedFile, editingInfo.vistaId);
+        } catch (error) {
+            notifications.show({ title: 'Error de IA', message: 'No se pudo quitar el fondo.', color: 'red' });
+        } finally {
+            setIsProcessingAI(false);
+            closeChooserModal();
+        }
+    };
+
+    const closeAllModals = () => setModal({ opened: false, vistaId: null, file: null, mode: null });
 
     const handleProcessComplete = (processedFile, vistaId) => {
         setFiles(prev => ({ ...prev, [vistaId]: processedFile }));
         setPreviews(prev => ({ ...prev, [vistaId]: URL.createObjectURL(processedFile) }));
-        closeAiEditorModal();
-        closeManualEditorModal();
+        // Cierra todos los modales por si acaso
+        closeChooserModal();
+        closeManualEditor();
+        setEditingInfo({ vistaId: null, file: null }); // Limpiamos el estado
     };
 
     const handleClearSelection = () => {
@@ -128,32 +162,31 @@ function ProductSpritePage() {
         closeEditorModal();
     };
 
+    const onProcessComplete = (processedFile, vistaId) => {
+        setImages(prev => ({ ...prev, [vistaId]: { preview: URL.createObjectURL(processedFile), file: processedFile, source: 'new' } }));
+        closeAllModals();
+    };
+
     const handleSubmit = async () => {
         setUploading(true);
-
-        // ----- ¡AQUÍ ESTÁ LA LÓGICA ANTI-OLVIDO! -----
-        const finalFileMap = { ...existingImages };
-        let hasNewFiles = false;
-
-        // Convertimos los nuevos archivos 'File' a 'Data URLs' (base64) para el envío
-        // y los añadimos al mapa final, sobreescribiendo los antiguos si es necesario.
-        for (const vistaId in files) {
-            if (files[vistaId]) {
-                hasNewFiles = true;
-                // ¡Esta conversión es asíncrona, así que la envolvemos en una promesa!
-                await new Promise((resolve) => {
-                    const reader = new FileReader();
-                    reader.readAsDataURL(files[vistaId]);
-                    reader.onloadend = () => {
-                        finalFileMap[vistaId] = reader.result;
-                        resolve();
-                    };
-                });
-            }
+        const formData = new FormData();
+        let newFileCount = 0;
+        
+        // 1. Añadimos los archivos NUEVOS (los File)
+        for (const vistaId in filesToUpload) {
+            formData.append(vistaId, filesToUpload[vistaId]);
+            newFileCount++;
         }
 
-        if (!hasNewFiles && Object.keys(existingImages).length > 0) {
-            notifications.show({ title: 'Información', message: 'No hay nuevos cambios que guardar.', color: 'blue' });
+        // 2. Añadimos las URLs ANTIGUAS que no hemos cambiado (como campos de texto)
+        for (const vistaId in existingImages) {
+            if (!filesToUpload[vistaId]) { // Si no hay una versión nueva...
+                formData.append(vistaId, existingImages[vistaId]); // ...mandamos la URL vieja.
+            }
+        }
+        
+        if (newFileCount === 0) {
+            notifications.show({ title: 'Sin cambios', message: 'No has editado ni añadido nuevas imágenes.', color: 'blue' });
             setUploading(false);
             return;
         }
@@ -161,9 +194,9 @@ function ProductSpritePage() {
         try {
             const token = localStorage.getItem('authToken');
             const apiUrl = `${import.meta.env.VITE_API_BASE_URL}/api/products/${productId}/assets/images`;
-            await axios.post(apiUrl, formData, { headers: { Authorization: `Bearer ${token}` }});
+            await axios.post(apiUrl, formData, { headers: { Authorization: `Bearer ${token}` } });
             
-            notifications.show({ title: '¡Éxito!', message: 'Las imágenes se han subido y asociado correctamente.', color: 'green' });
+            notifications.show({ title: '¡Éxito!', message: 'Los cambios se han guardado correctamente.', color: 'green' });
             navigate('/admin/products');
         } catch (error) {
             notifications.show({ title: 'Error', message: 'No se pudieron subir las imágenes.', color: 'red' });
@@ -175,30 +208,20 @@ function ProductSpritePage() {
     if (loading) return <Center h="80vh"><Loader /></Center>;
 
     return (
-        <Paper withBorder p="xl" shadow="md">
-            {/* Modal para el Editor de IA (el que ya tenías) */}
-            <Modal opened={editorModalOpened} onClose={closeEditorModal} title={`Editando: ${editingImage.vistaId}`}>
-                {editingImage.file && (
+        <Paper withBorder p="xl">
+            {/* El Modal Unificado */}
+            <Modal opened={modal.opened} onClose={closeAllModals} title={`Editando: ${modal.vistaId}`} size={modal.mode === 'canvas' ? 'xl' : 'sm'}>
+                {modal.mode === 'chooser' && (
                     <Stack align="center">
-                        <Image src={URL.createObjectURL(editingImage.file)} maw={200} />
-                        <Text size="sm" ta="center">¿Qué quieres hacer con esta imagen?</Text>
+                        <Image src={URL.createObjectURL(modal.file)} maw={250} />
                         <Group>
-                            <Button onClick={handleRemoveBackgroundAI}>Quitar Fondo (IA)</Button>
-                            <Button onClick={openManualEditor} variant="outline">Editar Manualmente</Button>
+                            <Button onClick={handleAIProcess} loading={isProcessingAI}>Quitar Fondo (IA)</Button>
+                            <Button onClick={handleManualProcess} variant="outline">Editar Manual</Button>
                         </Group>
                     </Stack>
                 )}
-            </Modal>
-
-            // ¡Y tendremos un SEGUNDO modal para el editor de Canvas!
-            <Modal opened={manualEditorOpened} onClose={closeManualEditor} size="xl" title="Editor Manual">
-                {manualEditInfo.file && (
-                    <ImageEditor 
-                        file={manualEditInfo.file} 
-                    
-                        onProcessComplete={(file) => handleProcessComplete(file, manualEditInfo.vistaId)} 
-                        onClear={closeManualEditor} 
-                    />
+                {modal.mode === 'canvas' && (
+                    <ImageEditor file={modal.file} onProcessComplete={(file) => onProcessComplete(file, modal.vistaId)} onClear={closeAllModals} />
                 )}
             </Modal>
             <Title order={3}>Estudio Fotográfico AR</Title>
