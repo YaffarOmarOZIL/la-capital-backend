@@ -1,72 +1,111 @@
-// En src/components/ImageEditor.jsx
+// En src/components/ImageEditor.jsx (Versión Definitiva y Sin Fantasmas)
 
-import { useState } from 'react';
-import { Box, Image, Stack, Button, Progress, Text, Group } from '@mantine/core';
-import { IconPhotoOff, IconX } from '@tabler/icons-react';
-import { removeBackground } from '@imgly/background-removal'; // <-- ¡La magia!
+import { useState, useRef, useEffect } from 'react';
+// ----- ¡LA IMPORTACIÓN CORRECTA Y ÚNICA! ¡SIN 'Canvas'! -----
+import { Group, Button, Stack, Text, Slider, Paper } from '@mantine/core';
+import { IconBrush, IconEraser } from '@tabler/icons-react';
+// -------------------------------------------------------------
 
-// Este componente recibirá la imagen, le quitará el fondo y se la devolverá al padre
 function ImageEditor({ file, onProcessComplete, onClear }) {
-    const [processing, setProcessing] = useState(false);
-    const [progress, setProgress] = useState(0);
+    const visibleCanvasRef = useRef(null);
+    const originalCanvasRef = useRef(null); // <-- ¡El lienzo secreto!
+    const [editorState, setEditorState] = useState({ brushSize: 20, mode: 'eraser' });
+    const [isDrawing, setIsDrawing] = useState(false);
+    
+    useEffect(() => {
+        const visibleCtx = visibleCanvasRef.current.getContext('2d');
+        const originalCtx = originalCanvasRef.current.getContext('2d');
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+            // Dibujamos la imagen en AMBOS lienzos
+            visibleCanvasRef.current.width = originalCanvasRef.current.width = img.naturalWidth;
+            visibleCanvasRef.current.height = originalCanvasRef.current.height = img.naturalHeight;
+            visibleCtx.drawImage(img, 0, 0);
+            originalCtx.drawImage(img, 0, 0);
+        };
+        img.src = URL.createObjectURL(file);
+    }, [file]);
+    
+    
+    const getCoords = ({ nativeEvent }) => {
+        const canvas = canvasRef.current;
+        const rect = canvas.getBoundingClientRect();
+        return {
+            x: (nativeEvent.clientX - rect.left) * (canvas.width / rect.width),
+            y: (nativeEvent.clientY - rect.top) * (canvas.height / rect.height),
+        };
+    };
 
-    const handleRemoveBackground = async () => {
-        if (!file) return;
-        setProcessing(true);
-        setProgress(0);
+    const startDrawing = (event) => {
+        const { x, y } = getCoords(event);
+        const ctx = canvasRef.current.getContext('2d');
+        setIsDrawing(true);
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+    };
 
-        try {
-            // ¡La función mágica que quita el fondo!
-            const processedBlob = await removeBackground(file, {
-                // Le damos una función para que nos informe del progreso
-                progress: (current, total) => {
-                    const percentage = Math.round((current / total) * 100);
-                    setProgress(percentage);
-                }
-            });
+    const stopDrawing = () => {
+        setIsDrawing(false);
+    };
 
-            // Convertimos el resultado (Blob) a un objeto File para que sea consistente
-            const processedFile = new File([processedBlob], file.name, { type: 'image/png' });
-            
-            // Le devolvemos el archivo procesado al componente padre
-            onProcessComplete(processedFile);
-
-        } catch (error) {
-            console.error('Error al quitar el fondo:', error);
-            // Aquí podrías mostrar una notificación de error
-        } finally {
-            setProcessing(false);
+    const draw = (event) => {
+        if (!isDrawing) return;
+        const { x, y } = getCoords(event);
+        const ctx = visibleCanvasRef.current.getContext('2d');
+        
+        if (editorState.mode === 'eraser') {
+            ctx.globalCompositeOperation = 'destination-out'; // Borra
+        } else {
+            // ¡LA MAGIA DE RESTAURAR! Copia desde el lienzo secreto
+            ctx.globalCompositeOperation = 'source-over';
+            const originalData = originalCanvasRef.current.getContext('2d').getImageData(x - editorState.brushSize / 2, y - editorState.brushSize / 2, editorState.brushSize, editorState.brushSize);
+            ctx.putImageData(originalData, x - editorState.brushSize / 2, y - editorState.brushSize / 2);
+            return; // Salimos para no ejecutar el 'stroke' normal
         }
+
+        ctx.lineTo(x, y);
+        ctx.stroke();
+    };
+
+    const handleDone = () => {
+        canvasRef.current.toBlob((blob) => {
+            const newFile = new File([blob], 'edited-image.png', { type: 'image/png' });
+            onProcessComplete(newFile);
+        }, 'image/png');
     };
 
     return (
-        <Stack align="center" gap="xs">
-            <Image src={URL.createObjectURL(file)} radius="sm" w={120} h={120} fit="contain" />
+        <Stack align="center">
+            {/* ... Lienzo visible ... */}
+            <canvas ref={visibleCanvasRef} /*...*/ />
+            {/* ¡El lienzo invisible que guarda la imagen original! */}
+            <canvas ref={originalCanvasRef} style={{ display: 'none' }} />
 
-            {processing ? (
-                <Progress value={progress} striped animated w="100%" />
-            ) : (
+            <Paper p="xs" withBorder>
                 <Group>
-                    <Button
-                        size="compact-xs"
-                        variant="light"
-                        color="blue"
-                        onClick={handleRemoveBackground}
-                        leftSection={<IconPhotoOff size={14} />}
-                    >
-                        Quitar Fondo
-                    </Button>
-                    <Button 
-                        size="compact-xs" 
-                        variant="subtle" 
-                        color="red" 
-                        onClick={onClear}
-                        leftSection={<IconX size={14}/>}
-                    >
-                        Descartar
-                    </Button>
+                    <Button.Group>
+                        <Button onClick={() => setEditorState(s => ({ ...s, mode: 'eraser' }))} variant={editorState.mode === 'eraser' ? 'filled' : 'light'} color="red">Borrador</Button>
+                        <Button onClick={() => setEditorState(s => ({ ...s, mode: 'brush' }))} variant={editorState.mode === 'brush' ? 'filled' : 'light'} color="blue">Restaurar</Button>
+                    </Button.Group>
+                   
+                    <Stack gap={0} ml="md">
+                        <Text size="xs">Tamaño:</Text>
+                        <Slider
+                            w={150}
+                            value={editorState.brushSize}
+                            onChange={(value) => setEditorState(s => ({ ...s, brushSize: value }))}
+                            min={2}
+                            max={50}
+                        />
+                    </Stack>
                 </Group>
-            )}
+            </Paper>
+
+            <Group justify="flex-end" w="100%" mt="md">
+                <Button variant="default" onClick={onClear}>Cancelar</Button>
+                <Button onClick={handleDone}>Hecho</Button>
+            </Group>
         </Stack>
     );
 }
