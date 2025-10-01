@@ -7,20 +7,30 @@ const { body, validationResult } = require('express-validator');
 // --- RUTAS PÚBLICAS (Para los clientes) ---
 
 // 1. PRIMERO, la ruta MÁS ESPECÍFICA ('/public/with-ar')
+// En /la_capital_fidelizacion/productRoutes.js
+
 router.get('/public/with-ar', async (req, res) => {
     try {
+        // ----- MICRÓFONO #1: ¿LLEGÓ LA LLAMADA? -----
+        console.log('--- RUTA /public/with-ar --- ¡Llamada recibida! Empezando consulta a Supabase...');
+
         const { data, error } = await supabase
             .from('Productos')
-            // ¡La magia está aquí! El '!inner' ya hace todo el trabajo de filtrado por nosotros.
             .select('id, nombre, descripcion, categoria, ActivosDigitales!inner(urls_imagenes)')
-            .eq('activo', true); // <-- Solo filtramos por los productos que están activos
+            .eq('activo', true)
+            .not('ActivosDigitales', 'is', null);
+
+        // ----- MICRÓFONO #2: ¿QUÉ RESPONDIÓ LA BASE DE DATOS? -----
+        console.log('--- RUTA /public/with-ar --- Respuesta de Supabase:', { 
+            data_recibida: data, 
+            error_recibido: error 
+        });
 
         if (error) throw error;
         
-        // Si no encuentra nada, simplemente devolverá un array vacío, lo cual es correcto.
         res.json(data);
     } catch(err) { 
-        console.error("Error al cargar productos con AR:", err);
+        console.error("--- RUTA /public/with-ar --- ¡ERROR CATASTRÓFICO!", err);
         res.status(500).json({ message: 'Error al cargar los productos con AR.' });
     }
 });
