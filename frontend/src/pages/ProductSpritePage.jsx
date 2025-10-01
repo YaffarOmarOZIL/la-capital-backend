@@ -2,11 +2,13 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Title, Text, Paper, Button, Group, Loader, Center, SimpleGrid, FileButton, Image, Box, Stack, Modal } from '@mantine/core';
+import { Title, Text, Paper, Button, Group, Loader, Center, SimpleGrid, FileButton, Image, Box, Stack, Modal, Divider } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconUpload, IconCamera, IconPhotoOff, IconEdit } from '@tabler/icons-react';
 import ImageEditor from '../components/ImageEditor';
 import { removeBackground } from '@imgly/background-removal';
+import { QRCodeCanvas } from 'qrcode.react'; // <-- ¡Nuestra nueva herramienta!
+import { useRef } from 'react'; // <-- Necesitamos 'useRef'
 
 const VISTAS = [ { id: 'frente', label: 'Vista Frontal' }, { id: 'lado_d', label: 'Lateral Derecho' }, { id: 'perspectiva', label: 'En Perspectiva' }, { id: 'atras', label: 'Vista Trasera' }, { id: 'lado_i', label: 'Lateral Izquierdo' }, { id: 'arriba', label: 'Desde Arriba (Cenital)' } ];
 
@@ -22,6 +24,21 @@ function ProductSpritePage() {
     const [images, setImages] = useState({});
     const [modal, setModal] = useState({ opened: false, vistaId: null, file: null, mode: null });
     const [isProcessingAI, setIsProcessingAI] = useState(false);
+
+    const [qrCodeValue, setQrCodeValue] = useState(null); // <-- Guardará la URL para el QR
+    const qrRef = useRef(); // <-- Una "referencia" para poder acceder al QR y guardarlo
+    const [downloadUrl, setDownloadUrl] = useState('');
+
+    useEffect(() => {
+        // Este efecto se dispara cada vez que qrCodeValue cambia
+        if (qrCodeValue && qrRef.current) {
+            // Esperamos un milisegundo para que React termine de "pintar" el QR
+            setTimeout(() => {
+                const url = qrRef.current.toDataURL('image/png');
+                setDownloadUrl(url); // <-- Y ahora sí, guardamos la URL buena
+            }, 100); // 100ms es un buen tiempo seguro
+        }
+    }, [qrCodeValue]);
 
     useEffect(() => {
         const initialize = async () => {
@@ -89,6 +106,31 @@ function ProductSpritePage() {
         } catch (error) { notifications.show({ title: 'Error', message: 'No se pudieron subir las imágenes.', color: 'red' }); } 
         finally { setUploading(false); }
     };
+
+    //QR --------------------------------------------------------------------
+
+    const handleGenerateQR = () => {
+        // Obtenemos la URL base de nuestra aplicación (¡súper robusto!)
+        const baseUrl = window.location.origin;
+        setQrCodeValue(`${baseUrl}/ar-viewer/${productId}`);
+    };
+
+    const handleSaveQR = async () => {
+        if (!qrRef.current) return;
+        // Convertimos el QR (que es un <canvas>) a una imagen Base64
+        const qrCodeDataUrl = qrRef.current.toDataURL('image/png');
+        
+        try {
+            const token = localStorage.getItem('authToken');
+            const apiUrl = `${import.meta.env.VITE_API_BASE_URL}/api/products/${productId}/assets/qr`;
+            await axios.put(apiUrl, { qrCodeDataUrl }, { headers: { Authorization: `Bearer ${token}` } });
+            
+            notifications.show({ title: 'Éxito', message: 'El código QR se ha guardado en la base de datos.', color: 'green' });
+        } catch (error) {
+            notifications.show({ title: 'Error', message: 'No se pudo guardar el código QR.', color: 'red' });
+        }
+    };
+
     
     if (loading) return <Center h="80vh"><Loader /></Center>;
 
@@ -132,6 +174,60 @@ function ProductSpritePage() {
                 <Button variant="default" onClick={() => navigate('/admin/products')}>Cancelar</Button>
                 <Button onClick={handleSubmit} loading={uploading} leftSection={<IconUpload size={16}/>}>Guardar Cambios</Button>
             </Group>
+            <Divider my="xl" label="Generador de Código QR" labelPosition="center" />
+
+            <Stack align="center" gap="md">
+                <Button
+                    onClick={handleGenerateQR}
+                    disabled={Object.keys(images).length < VISTAS.length}
+                    variant="gradient"
+                    gradient={{ from: 'yellow', to: 'orange' }}
+                >
+                    Generar QR
+                </Button>
+                
+                {qrCodeValue && (
+                    <Paper withBorder p="md" mt="md">
+                        <Stack align="center">
+                            
+                            {/* 
+                                Este componente de abajo ahora será "invisible" para el usuario.
+                                Lo usamos SOLO para que 'qrcode.react' dibuje el QR
+                                y nosotros podamos "robar" la imagen con el ref.
+                            */}
+                            <QRCodeCanvas 
+                                ref={qrRef} 
+                                value={qrCodeValue} 
+                                size={256} // <-- Lo hacemos más grande para mejor calidad
+                                style={{ display: 'none' }} // <-- ¡LO OCULTAMOS!
+                            />
+
+                            {/* 
+                                Y este componente de abajo es una IMAGEN normal, que sí mostramos.
+                                Su 'src' será la URL de descarga que calculamos.
+                            */}
+                            <Image
+                                w={128} h={128}
+                                src={downloadUrl} // <-- Usamos nuestro nuevo estado
+                                radius="sm"
+                            />
+                            
+                            <Text size="xs" c="dimmed" mt="xs">Descarga este QR o guárdalo en el sistema.</Text>
+                            <Group>
+                                <Button onClick={handleSaveQR} variant="light">Guardar en Supabase</Button>
+                                <Button
+                                    component="a"
+                                    href={downloadUrl}
+                                    download={`qr_producto_${product?.nombre.replace(/\s/g, '_') || 'qr'}.png`}
+                                    disabled={!downloadUrl} // <-- Desactivado hasta que la URL esté lista
+                                >
+                                    Descargar
+                                </Button>
+                            </Group>
+                        </Stack>
+                    </Paper>
+                )}
+            </Stack>
         </Paper>
     );
 }

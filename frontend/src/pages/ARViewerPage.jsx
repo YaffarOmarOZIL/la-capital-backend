@@ -1,23 +1,10 @@
-// En src/pages/ARViewerPage.jsx (Versión 2.0 con AR.js 3)
+// En src/pages/ARViewerPage.jsx (Versión 2.0 - Funcional)
 
-import 'aframe'; // Mantenemos la importación de A-Frame
+import 'aframe'; // ¡Importante! Mantenemos esto
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
-import { Loader, Center, Alert } from '@mantine/core';
-import { IconAlertCircle } from '@tabler/icons-react';
-
-// ¡IMPORTANTE! Añadimos el script de AR.js directamente en el HTML.
-// Esta es la forma oficial y más estable de usarlo.
-const loadARJS = () => {
-    return new Promise(resolve => {
-        const script = document.createElement('script');
-        script.src = 'https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js';
-        script.onload = resolve;
-        document.body.appendChild(script);
-    });
-};
-
+import { Loader, Center, Alert, Button } from '@mantine/core';
 
 function ARViewerPage() {
     const { productId } = useParams();
@@ -26,55 +13,57 @@ function ARViewerPage() {
     const [error, setError] = useState('');
 
     useEffect(() => {
-        const init = async () => {
-            await loadARJS(); // Esperamos a que el script de AR.js se cargue
-
+        // --- Carga los datos del producto desde nuestra NUEVA RUTA PÚBLICA ---
+        const fetchAssetData = async () => {
             try {
-                const apiUrl = `${import.meta.env.VITE_API_BASE_URL}/api/products/${productId}`;
+                const apiUrl = `${import.meta.env.VITE_API_BASE_URL}/api/products/public/${productId}`;
                 const { data } = await axios.get(apiUrl);
 
-                if (data.ActivosDigitales && data.ActivosDigitales.urls_imagenes) {
+                if (data.ActivosDigitales?.urls_imagenes) {
+                    // Cogemos la imagen de perspectiva, o la frontal, o la que sea.
                     const imageUrl = data.ActivosDigitales.urls_imagenes.perspectiva || data.ActivosDigitales.urls_imagenes.frente || Object.values(data.ActivosDigitales.urls_imagenes)[0];
-                    setAssetData({ productName: data.nombre, imageUrl });
+                    if (!imageUrl) throw new Error();
+                    setAssetData({ imageUrl });
                 } else {
-                    setError('Este producto no tiene una vista de AR disponible.');
+                    throw new Error();
                 }
             } catch (err) {
-                setError('No se pudo cargar el producto.');
+                setError('Este producto no tiene una vista de AR disponible.');
             } finally {
                 setLoading(false);
             }
         };
 
-        init();
+        // Inyectamos el script de AR.js
+        const arjsScript = document.createElement('script');
+        arjsScript.src = "https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js";
+        arjsScript.onload = fetchAssetData;
+        document.body.appendChild(arjsScript);
+
+        return () => { document.body.removeChild(arjsScript); }; // Limpiamos al salir
     }, [productId]);
 
-    if (loading || !assetData) {
-        // Mostramos un loader o un mensaje de error si algo falla
-        return <Center h="100vh">{loading ? <Loader /> : <Alert color="red" icon={<IconAlertCircle />}>{error}</Alert>}</Center>;
-    }
+    if (loading) return <Center h="100vh"><Loader /></Center>;
+    if (error) return <Center h="100vh" p="md"><Alert color="red">{error}</Alert></Center>;
+    if (!assetData) return <Center h="100vh"><Alert color="yellow">No se encontró el activo para mostrar.</Alert></Center>;
 
-    // --- ¡LA ESCENA AR, AHORA MÁS SIMPLE Y PODEROSA! ---
     return (
-        <a-scene embedded arjs='sourceType: webcam; debugUIEnabled: false;'>
-            <a-assets>
-                <img id="productSprite" src={assetData.imageUrl} crossOrigin="anonymous" alt={assetData.productName} />
-            </a-assets>
-            
-            {/* 
-                - La magia de "siempre mirar a la cámara" se llama 'billboard'.
-                - `look-at="[camera]"` también funciona.
-                - scale y position los puedes ajustar para que el tamaño y la distancia sean perfectos.
-            */}
-            <a-image
-                src="#productSprite"
-                width="1" height="1"
-                position="0 0.5 -3"
-                look-at="[camera]"
-            ></a-image>
+        <div style={{ position: 'relative', width: '100vw', height: '100vh' }}>
+            <a-scene embedded arjs='sourceType: webcam; trackingMethod: best; debugUIEnabled: false;'>
+                <a-assets>
+                    <img id="sprite" src={assetData.imageUrl} crossOrigin="anonymous" alt="Product Sprite"/>
+                </a-assets>
+                
+                {/* Nuestra imagen "Sprite" que siempre mira a la cámara */}
+                <a-image src="#sprite" width="1" height="1" position="0 0.5 -3" look-at="[camera]"></a-image>
 
-            <a-camera-static />
-        </a-scene>
+                <a-camera-static />
+            </a-scene>
+            {/* ¡BONUS! Un botón para volver atrás, ¡esencial para la UX! */}
+            <Button component={Link} to="/experiencia-cliente" variant="default" style={{ position: 'absolute', top: '20px', left: '20px', zIndex: 10 }}>
+                Volver
+            </Button>
+        </div>
     );
 }
 

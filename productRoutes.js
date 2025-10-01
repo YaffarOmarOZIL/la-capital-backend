@@ -144,4 +144,38 @@ router.delete('/:id', isAdmin, async (req, res) => {
     }
 });
 
+// --- NUEVA RUTA PÚBLICA PARA EL VISOR AR ---
+// ¡Sin middleware de autenticación, para que cualquiera con el enlace pueda verla!
+router.get('/public/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { data, error } = await supabase
+            .from('Productos')
+            .select('*, ActivosDigitales ( urls_imagenes )') // Pedimos el producto y sus imágenes
+            .eq('id', id)
+            .single();
+
+        if (error || !data) throw new Error('Producto no encontrado.');
+        
+        res.json(data);
+    } catch (error) {
+        console.error(`Error al obtener producto público ${req.params.id}:`, error);
+        res.status(404).json({ message: "Producto no encontrado." });
+    }
+});
+
+// --- NUEVA RUTA PÚBLICA PARA LA GALERÍA ---
+router.get('/public/with-ar', async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from('Productos')
+            .select('id, nombre, descripcion, categoria, ActivosDigitales!inner(urls_imagenes)')
+            .eq('activo', true) // Solo productos activos
+            // '!inner' asegura que solo vengan productos que SÍ tienen un activo digital asociado
+            
+        if (error) throw error;
+        res.json(data);
+    } catch(err) { res.status(500).json({ message: 'Error al cargar productos.' }) }
+});
+
 module.exports = router;
