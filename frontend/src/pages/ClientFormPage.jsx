@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useForm } from '@mantine/form';
-import { TextInput, Button, Box, Group, Title, Select, Textarea, PasswordInput, Modal, Text, Divider } from '@mantine/core';
+import { TextInput, Button, Box, Group, Title, Select, Textarea, PasswordInput, Modal, Text, Divider, SimpleGrid} from '@mantine/core';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { DateInput } from '@mantine/dates'; // Para la fecha de nacimiento
@@ -22,7 +22,8 @@ function ClientFormPage() {
     // --- Configuración del formulario con Mantine ---
     const form = useForm({
         initialValues: {
-            nombre_completo: '',
+            nombres: '',      
+            apellidos: '', 
             numero_telefono: '',
             email: '',
             password: '', // <-- Campo para la nueva contraseña
@@ -32,11 +33,18 @@ function ClientFormPage() {
             notas: ''
         },
         validate: {
-            nombre_completo: (value) => {
+            nombres: (value) => {
                 if (!value.trim()) return 'El nombre es obligatorio.';
                 if (value.length > 50) return 'El nombre no debe exceder los 50 caracteres.';
                 // Regex para permitir letras (con acentos), espacios, y algunos caracteres comunes en nombres.
                 if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s'-]+$/.test(value)) return 'El nombre solo puede contener letras y espacios.';
+                return null;
+            },
+            apellidos: (value) => {
+                if (!value.trim()) return 'El apeliido es obligatorio.';
+                if (value.length > 50) return 'El apellido no debe exceder los 50 caracteres.';
+                // Regex para permitir letras (con acentos), espacios, y algunos caracteres comunes en nombres.
+                if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s'-]+$/.test(value)) return 'El apellido solo puede contener letras y espacios.';
                 return null;
             },
             numero_telefono: (value) => {
@@ -115,7 +123,8 @@ function ClientFormPage() {
             const token = localStorage.getItem('authToken');
 
             const payload = {
-                nombre_completo: values.nombre_completo,
+                nombres: values.nombres,
+                apellidos: values.apellidos,
                 numero_telefono: values.numero_telefono,
                 email: values.email,
                 genero: values.genero,
@@ -163,12 +172,21 @@ function ClientFormPage() {
                 {isEditing ? 'Editar Cliente' : 'Añadir Nuevo Cliente'}
             </Title>
             <form onSubmit={form.onSubmit(handleSubmit)}>
+                <SimpleGrid cols={2}>
                 <TextInput 
-                    label="Nombre Completo" 
-                    placeholder="Ej: Omar Alejandro Jara Renjifo"
-                    {...form.getInputProps('nombre_completo')} 
+                    label="Nombre(s)" 
+                    placeholder="Ej: Omar Alejandro "
+                    {...form.getInputProps('nombres')} 
                     required 
                 />
+
+                <TextInput 
+                    label="Apellido(s)" 
+                    placeholder="Ej: Jara Renjifo"
+                    {...form.getInputProps('apellidos')} 
+                    required 
+                />
+                </SimpleGrid>
 
                 <TextInput 
                     label="Email (para la cuenta)"

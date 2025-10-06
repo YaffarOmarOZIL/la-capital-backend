@@ -149,9 +149,16 @@ function ProfilePage() {
         <Stack>
           {/* El `|| ''` es una última capa de seguridad por si algún campo viene nulo */}
           <TextInput
-            name="nombre_completo"
-            label="Nombre Completo"
-            value={formData?.nombre_completo || ''}
+            name="nombres"
+            label="Nombre(s)"
+            value={formData?.nombres || ''}
+            onChange={handleChange}
+            required
+          />
+          <TextInput
+            name="apellidos"
+            label="Apellido(s)"
+            value={formData?.apellidos || ''}
             onChange={handleChange}
             required
           />

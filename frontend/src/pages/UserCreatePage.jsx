@@ -8,6 +8,7 @@ function UserCreatePage() {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     nombre: '',
+    apellido: '',
     email: '',
     password: '',
     confirmPassword: '',
@@ -53,7 +54,8 @@ function UserCreatePage() {
       const apiUrl = `${import.meta.env.VITE_API_BASE_URL}/api/users`;
       
       await axios.post(apiUrl, {
-        nombre_completo: formData.nombre,
+        nombres: formData.nombre,
+        apellidos: formData.apellido,
         email: formData.email,
         password: formData.password,
         id_rol: parseInt(formData.rol),
@@ -87,8 +89,15 @@ function UserCreatePage() {
         <Stack>
           <TextInput 
             name="nombre" 
-            label="Nombre Completo" 
-            placeholder="Juan Pérez" 
+            label="Nombre(s)" 
+            placeholder="Juan" 
+            onChange={handleChange} 
+            required 
+          />
+          <TextInput 
+            name="apellido" 
+            label="Apellido(s)" 
+            placeholder="Pérez" 
             onChange={handleChange} 
             required 
           />

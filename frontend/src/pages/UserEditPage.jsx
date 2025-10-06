@@ -7,7 +7,7 @@ import { notifications } from '@mantine/notifications';
 function UserEditPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [user, setUser] = useState({ nombre_completo: '', email: '', id_rol: '2' });
+  const [user, setUser] = useState({ nombres: '', apellidos: '', email: '', id_rol: '2' });
 
   // Carga los datos del usuario a editar
   useEffect(() => {
@@ -31,10 +31,11 @@ function UserEditPage() {
 
   return (
     <Paper withBorder p="md">
-      <Title order={3} mb="lg">Editando Usuario: {user.nombre_completo}</Title>
+      <Title order={3} mb="lg">Editando Usuario: {user.nombres}</Title>
       <form onSubmit={handleSubmit}>
         <Stack>
-            <TextInput label="Nombre Completo" value={user.nombre_completo} onChange={(e) => setUser({...user, nombre_completo: e.target.value})} required />
+            <TextInput label="Nombre(s)" value={user.nombres} onChange={(e) => setUser({...user, nombres: e.target.value})} required />
+            <TextInput label="Apellido(s)" value={user.apellidos} onChange={(e) => setUser({...user, apellidos: e.target.value})} required />
             <TextInput label="Email" value={user.email} onChange={(e) => setUser({...user, email: e.target.value})} required />
             <Select label="Rol" value={String(user.id_rol)} onChange={(value) => setUser({...user, id_rol: value})} data={[{ value: '1', label: 'Administrador' }, { value: '2', label: 'Empleado' }]} required />
         </Stack>

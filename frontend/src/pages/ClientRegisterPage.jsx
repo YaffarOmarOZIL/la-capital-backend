@@ -16,7 +16,8 @@ function ClientRegisterPage() {
     // ----- El Formulario, ahora con los nuevos campos y validaciones -----
     const form = useForm({
         initialValues: {
-            nombre_completo: '',
+            nombres: '',
+            apellidos: '',
             email: '',
             numero_telefono: '',
             password: '',
@@ -25,12 +26,21 @@ function ClientRegisterPage() {
             genero: '',
         },
         validate: {
-            nombre_completo: (value) => {
+            nombres: (value) => {
                 if (!value.trim()) return 'El nombre es obligatorio.';
                 if (value.length > 50) return 'El nombre no debe exceder los 50 caracteres.';
                 // Regex para permitir solo letras (con acentos), espacios y apóstrofes/guiones
                 if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s'-]+$/.test(value)) {
                     return 'El nombre solo puede contener letras y espacios.';
+                }
+                return null;
+            },
+            apellidos: (value) => {
+                if (!value.trim()) return 'El apellido es obligatorio.';
+                if (value.length > 50) return 'El apellido no debe exceder los 50 caracteres.';
+                // Regex para permitir solo letras (con acentos), espacios y apóstrofes/guiones
+                if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s'-]+$/.test(value)) {
+                    return 'El apellido solo puede contener letras y espacios.';
                 }
                 return null;
             },
@@ -101,7 +111,8 @@ function ClientRegisterPage() {
 
                     <form onSubmit={form.onSubmit(handleSubmit)}>
                         {/* El formulario ahora incluye los nuevos campos */}
-                        <TextInput label="Nombre Completo" {...form.getInputProps('nombre_completo')} required />
+                        <TextInput label="Nombre(s)" {...form.getInputProps('nombres')} required />
+                        <TextInput label="Apellido(s)" {...form.getInputProps('apellidos')} required />
                         <TextInput label="Email" {...form.getInputProps('email')} mt="md" required />
                         <TextInput label="Número de Teléfono" {...form.getInputProps('numero_telefono')} mt="md" />
                         

@@ -14,7 +14,7 @@ router.get('/', isAdmin, async (req, res) => {
       .from('Usuarios')
       .select(`
         id,
-        nombre_completo,
+        nombres, apellidos,
         email,
         Roles ( nombre_rol )
       `);
@@ -24,7 +24,8 @@ router.get('/', isAdmin, async (req, res) => {
     // Formateamos la data para que sea más fácil de usar en el frontend
     const formattedUsers = data.map(u => ({
         id: u.id,
-        nombre_completo: u.nombre_completo,
+        nombres: u.nombres,
+        apellidos: u.apellidos,
         email: u.email,
         rol: u.Roles.nombre_rol // Aplanamos la estructura
     }));
@@ -44,7 +45,7 @@ router.get('/me', isAuthenticated, async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('Usuarios')
-      .select('nombre_completo, email, is_two_factor_enabled')
+      .select('nombres, apellidos, email, is_two_factor_enabled')
       .eq('id', userId)
       .single();
     if (error) throw error;
@@ -56,7 +57,8 @@ router.get('/me', isAuthenticated, async (req, res) => {
 
 // --- RUTA PARA ACTUALIZAR CUALQUIER USUARIO (SOLO ADMIN) ---
 router.put('/:id', isAdmin, [
-    body('nombre_completo').not().isEmpty().withMessage('El nombre es requerido.'),
+    body('nombres').not().isEmpty().withMessage('El nombre es requerido.'), 
+    body('apellidos').not().isEmpty().withMessage('El apellido es requerido.'),
     body('email').isEmail().withMessage('Email inválido.'),
     body('id_rol').isInt().withMessage('El rol es inválido.')
 ], async (req, res) => {
@@ -64,14 +66,14 @@ router.put('/:id', isAdmin, [
     if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
     const { id } = req.params;
-    const { nombre_completo, email, id_rol } = req.body;
+    const { nombres, apellidos, email, id_rol } = req.body;
 
     try {
         const { data, error } = await supabase
             .from('Usuarios')
-            .update({ nombre_completo, email, id_rol })
+            .update({ nombres, apellidos, email, id_rol })
             .eq('id', id)
-            .select('id, nombre_completo, email, id_rol') // Devolvemos los datos actualizados
+            .select('id, nombres, apellidos, email, id_rol') // Devolvemos los datos actualizados
             .single();
 
         if (error) {
@@ -114,7 +116,8 @@ router.post(
   isAdmin,
   // Las validaciones de express-validator se quedan exactamente igual
   [
-    body('nombre_completo', 'El nombre es requerido y no debe contener números').not().isEmpty().trim().escape().matches(/^[a-zA-Z\s]+$/),
+    body('nombres', 'El nombre es requerido y no debe contener números').not().isEmpty().trim().escape().matches(/^[a-zA-Z\s]+$/),
+    body('apellidos', 'El apellido es requerido y no debe contener números').not().isEmpty().trim().escape().matches(/^[a-zA-Z\s]+$/),
     body('email', 'Por favor, introduce un email válido').isEmail().normalizeEmail(),
     body('password').isStrongPassword({ minLength: 8, minLowercase: 1, minUppercase: 1, minNumbers: 1, minSymbols: 1, }).withMessage('La contraseña debe tener al menos 8 caracteres...'),
     body('id_rol', 'El rol es requerido').isInt({ min: 1, max: 2 }),
@@ -126,14 +129,14 @@ router.post(
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { nombre_completo, email, password, id_rol } = req.body;
+    const { nombres, apellidos, email, password, id_rol } = req.body;
 
     try {
       // 2. Hashear la contraseña
       const salt = bcrypt.genSaltSync(10);
       const password_hash = bcrypt.hashSync(password, salt);
       
-      const newUser = { nombre_completo, email, password_hash, id_rol };
+      const newUser = { nombres, apellidos, email, password_hash, id_rol };
 
       // 3. Insertar en Supabase (esto ya sabemos que funciona)
       const { data, error } = await supabase
@@ -230,7 +233,7 @@ router.get('/:id', isAdmin, async (req, res) => {
             .from('Usuarios')
             .select(`
                 id,
-                nombre_completo,
+                nombres, apellidos,
                 email,
                 id_rol
             `)

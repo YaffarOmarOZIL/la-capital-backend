@@ -56,7 +56,7 @@ function ClientListPage() {
       const apiUrl = `${import.meta.env.VITE_API_BASE_URL}/api/clients/${clientToDelete.id}`;
       await axios.delete(apiUrl, { headers: { Authorization: `Bearer ${token}` } });
 
-      notifications.show({ title: 'Éxito', message: `Cliente "${clientToDelete.nombre_completo}" eliminado.`, color: 'green' });
+      notifications.show({ title: 'Éxito', message: `Cliente "${clientToDelete.nombres}" eliminado.`, color: 'green' });
       close();
       fetchClients(); // Volvemos a cargar la lista para que desaparezca el cliente eliminado
     } catch (error) {
@@ -74,7 +74,8 @@ function ClientListPage() {
 
   const clientRows = clients.map((client) => (
     <Table.Tr key={client.id}>
-      <Table.Td>{client.nombre_completo}</Table.Td>
+      <Table.Td>{client.nombres}</Table.Td>
+      <Table.Td>{client.apellidos}</Table.Td>
       <Table.Td>{client.numero_telefono}</Table.Td>
       <Table.Td>{client.email || 'No registrado'}</Table.Td>
       <Table.Td>{client.fecha_nacimiento ? new Date(client.fecha_nacimiento).toLocaleDateString() : 'No registrada'}</Table.Td>
@@ -114,7 +115,8 @@ function ClientListPage() {
         <Table striped highlightOnHover>
           <Table.Thead>
             <Table.Tr>
-              <Table.Th>Nombre Completo</Table.Th>
+              <Table.Th>Nombres</Table.Th>
+              <Table.Th>Apellidos</Table.Th>
               <Table.Th>Teléfono</Table.Th>
               <Table.Th>Email</Table.Th>
               <Table.Th>Fecha de Nacimiento</Table.Th>
@@ -131,7 +133,7 @@ function ClientListPage() {
       {/* <-- NUEVO: El modal de confirmación, invisible hasta que se necesite */}
       <Modal opened={opened} onClose={close} title="Confirmar Eliminación" centered>
         <Text>¿Estás seguro de que quieres eliminar a 
-          <Text span c="red" fw={700} mx={4}>{clientToDelete?.nombre_completo}</Text>?</Text>
+          <Text span c="red" fw={700} mx={4}>{clientToDelete?.nombres}{clientToDelete?.apellidos}</Text>?</Text>
         <Text c="dimmed" size="sm" mt="sm">Esta acción es irreversible y no se podrá deshacer.</Text>
         <Group justify="flex-end" mt="xl">
           <Button variant="default" onClick={close}>Cancelar</Button>

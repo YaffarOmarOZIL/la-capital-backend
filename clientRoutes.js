@@ -11,10 +11,10 @@ const bcrypt = require('bcryptjs');
 router.get('/', isAuthenticated, async (req, res) => {
     const { search } = req.query;
     try {
-        let query = supabase.from('Clientes').select('*').order('nombre_completo', { ascending: true });
+        let query = supabase.from('Clientes').select('*').order('apellidos', { ascending: true });
 
         if (search) {
-            query = query.or(`nombre_completo.ilike.%${search}%,numero_telefono.ilike.%${search}%`);
+            query = query.or(`nombres.ilike.%${search}%,numero_telefono.ilike.%${search}%`);
         }
         
         const { data, error } = await query;
@@ -29,7 +29,8 @@ router.get('/', isAuthenticated, async (req, res) => {
 // --- 2. CREAR un nuevo cliente ---
 // El personal autenticado (no necesita ser admin) puede registrar clientes.
 router.post('/', isAuthenticated, [
-    body('nombre_completo').notEmpty().withMessage('El nombre es requerido'),
+    body('nombres').notEmpty().withMessage('El nombre es requerido'),
+    body('apellidos').notEmpty().withMessage('El apellido es requerido'),
     body('numero_telefono').isLength({ min: 8 }).withMessage('El número de teléfono debe ser válido')
 ], async (req, res) => {
     const errors = validationResult(req);
@@ -37,11 +38,11 @@ router.post('/', isAuthenticated, [
         return res.status(400).json({ errors: errors.array() });
     }
     
-    const { nombre_completo, numero_telefono, fecha_nacimiento, genero, notas } = req.body;
+    const { nombres, apellidos, numero_telefono, fecha_nacimiento, genero, notas } = req.body;
     try {
         const { data, error } = await supabase
             .from('Clientes')
-            .insert([{ nombre_completo, numero_telefono, fecha_nacimiento, genero, notas }])
+            .insert([{ nombres, apellidos, numero_telefono, fecha_nacimiento, genero, notas }])
             .select()
             .single();
             
@@ -61,10 +62,10 @@ router.post('/', isAuthenticated, [
 // --- 3. ACTUALIZAR un cliente ---
 router.put('/:id', isAuthenticated, async (req, res) => {
     const { id } = req.params;
-    const { nombre_completo, numero_telefono, email, fecha_nacimiento, genero, notas, password } = req.body;
+    const { nombres, apellidos, numero_telefono, email, fecha_nacimiento, genero, notas, password } = req.body;
 
     try {
-        const updates = { nombre_completo, numero_telefono, email, fecha_nacimiento, genero, notas };
+        const updates = { nombres, apellidos, numero_telefono, email, fecha_nacimiento, genero, notas };
 
         // ----- ¡LA MAGIA ESTÁ AQUÍ! -----
         // Si el admin nos mandó una nueva contraseña...

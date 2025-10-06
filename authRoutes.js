@@ -6,9 +6,9 @@ const router = express.Router();
 
 
 router.post('/register', async (req, res) => {
-    const { nombre, email, password, id_rol } = req.body;
+    const { nombres, apellidos, email, password, id_rol } = req.body;
 
-    if (!email || !password || !nombre || !id_rol) {
+    if (!email || !password || !nombres || !apellidos || !id_rol) {
         return res.status(400).json({ message: 'Todos los campos son requeridos' });
     }
 
@@ -19,7 +19,7 @@ router.post('/register', async (req, res) => {
     // Insertamos el nuevo usuario en la tabla Usuarios de Supabase
     const { data, error } = await supabase
         .from('Usuarios')
-        .insert([{ nombre_completo: nombre, email, password_hash, id_rol }]);
+        .insert([{ nombres, apellidos, email, password_hash, id_rol }]);
 
     if (error) {
         console.error('Error al registrar:', error);

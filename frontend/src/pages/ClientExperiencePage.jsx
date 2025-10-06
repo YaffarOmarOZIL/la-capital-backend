@@ -12,13 +12,29 @@ function ClientExperiencePage() {
     const [products, setProducts] = useState([]);
 
     useEffect(() => {
-        const fetchProductsWithAR = async () => {
+    const fetchProductsWithAR = async () => {
+        try {
             const apiUrl = `${import.meta.env.VITE_API_BASE_URL}/api/products/public/with-ar`;
-            const { data } = await axios.get(apiUrl);
-            if (data) setProducts(data);
-        };
-        fetchProductsWithAR();
-    }, []);
+
+            // ----- MICRÓFONO #1: ¿ESTAMOS LLAMANDO? -----
+            console.log('--- FRONTEND --- [1] Lanzando petición GET a:', apiUrl);
+
+            const response = await axios.get(apiUrl);
+            
+            // ----- MICRÓFONO #2: ¿QUÉ NOS RESPONDIERON? -----
+            console.log('--- FRONTEND --- [2] ¡Respuesta recibida del backend! Contenido:', response.data);
+            
+            if (response.data) {
+                setProducts(response.data);
+                // ----- MICRÓFONO #3: ¿SE GUARDARON LOS DATOS? -----
+                console.log('--- FRONTEND --- [3] ¡Productos guardados en el estado!');
+            }
+        } catch(error) {
+            console.error('--- FRONTEND --- ¡ERROR AL LLAMAR A LA API!', error);
+        }
+    };
+    fetchProductsWithAR();
+}, []);
 
     return (
         <Container my="xl">

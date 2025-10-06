@@ -11,7 +11,8 @@ router.post(
     '/register',
     [
         // Tus validaciones están perfectas
-        body('nombre_completo').not().isEmpty().trim().escape().withMessage('El nombre es requerido.'),
+        body('nombres').not().isEmpty().trim().escape().withMessage('El nombre es requerido.'),
+        body('apellidos').not().isEmpty().trim().escape().withMessage('El apellido es requerido.'),
         body('email').isEmail().normalizeEmail().withMessage('Por favor, introduce un email válido.'),
         body('numero_telefono').not().isEmpty().trim().withMessage('El número de teléfono es requerido.'),
         body('password').isLength({ min: 8 }).withMessage('La contraseña debe tener al menos 8 caracteres.')
@@ -23,7 +24,7 @@ router.post(
         }
 
         // ----- ¡LA MAGIA! Ahora también recibimos estos campos opcionales -----
-        const { nombre_completo, email, password, numero_telefono, fecha_nacimiento, genero } = req.body;
+        const { nombres, apellidos, email, password, numero_telefono, fecha_nacimiento, genero } = req.body;
 
         try {
             const salt = await bcrypt.genSalt(10);
@@ -33,14 +34,14 @@ router.post(
             const { data, error } = await supabase
                 .from('Clientes')
                 .insert({
-                    nombre_completo,
+                    nombres, apellidos,
                     numero_telefono,
                     email,
                     password_hash,
                     fecha_nacimiento, // <-- Nuevo
                     genero            // <-- Nuevo
                 })
-                .select('id, nombre_completo, email, created_at')
+                .select('id, nombres, email, created_at')
                 .single();
 
             if (error) {
@@ -76,7 +77,7 @@ router.post('/login', [
         // 1. Buscamos al cliente por su email
         const { data: cliente, error: findError } = await supabase
             .from('Clientes')
-            .select('id, nombre_completo, password_hash') // Pedimos solo el id y la contraseña encriptada
+            .select('id, nombres, apellidos, password_hash') // Pedimos solo el id y la contraseña encriptada
             .eq('email', email)
             .single();
 
@@ -95,7 +96,7 @@ router.post('/login', [
         // 3. ¡Creamos el pasaporte VIP (JWT)!
         const payload = {
             id: cliente.id,
-            nombre: cliente.nombre_completo, // <-- ¡Añadimos el nombre!
+            nombre: '${cliente.nombres} ${cliente.apellidos}', // <-- ¡Añadimos el nombre!
             role: 'Cliente' // Un rol específico para diferenciarlo de los empleados
         };
 

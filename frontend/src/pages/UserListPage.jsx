@@ -77,9 +77,10 @@ function UserListPage() {
   const rows = users.map((user) => (
     <Table.Tr key={user.id}>
       <Table.Td>
-        <Avatar color="brand-yellow" radius="xl">{user.nombre_completo.charAt(0).toUpperCase()}</Avatar>
+        <Avatar color="brand-yellow" radius="xl">{user.nombres?.charAt(0).toUpperCase() || '?'}</Avatar>
       </Table.Td>
-      <Table.Td>{user.nombre_completo}</Table.Td>
+      <Table.Td>{user.nombres}</Table.Td>
+      <Table.Td>{user.apellidos}</Table.Td>
       <Table.Td>{user.email}</Table.Td>
       <Table.Td>
         <Badge color={user.rol === 'Administrador' ? 'orange' : 'gray'} variant="light">
@@ -116,7 +117,8 @@ function UserListPage() {
           <Table.Thead>
             <Table.Tr>{/* SIN ESPACIOS AQUÍ */}
               <Table.Th>Avatar</Table.Th>
-              <Table.Th>Nombre Completo</Table.Th>
+              <Table.Th>Nombres</Table.Th>
+              <Table.Th>Apellidos</Table.Th>
               <Table.Th>Email</Table.Th>
               <Table.Th>Rol</Table.Th>
               <Table.Th>Acciones</Table.Th>
@@ -128,7 +130,7 @@ function UserListPage() {
 
       <Modal opened={opened} onClose={close} title="Confirmar Eliminación" centered>
         <Text>¿Estás seguro de que quieres eliminar a 
-          <Text span fw={700} mx={4}>{userToDelete?.nombre_completo}</Text>?</Text>
+          <Text span fw={700} mx={4}>{userToDelete?.nombres} {userToDelete?.apellidos}</Text>?</Text>
         <Text c="red" fw={700} mt="md">¡Esta acción es irreversible!</Text>
         <Group justify="flex-end" mt="xl">
           <Button variant="default" onClick={close}>Cancelar</Button>
