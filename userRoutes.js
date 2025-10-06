@@ -55,6 +55,42 @@ router.get('/me', isAuthenticated, async (req, res) => {
   }
 });
 
+router.put('/me', isAuthenticated, [
+    // ¡Las validaciones correctas para los nuevos campos!
+    body('nombres').not().isEmpty().withMessage('El nombre es requerido.'),
+    body('apellidos').not().isEmpty().withMessage('El apellido es requerido.'),
+    body('email').isEmail().withMessage('El email no es válido.')
+], async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+    }
+
+    const userId = req.user.id; // Obtenemos el ID desde el token, ¡súper seguro!
+    const { nombres, apellidos, email } = req.body;
+
+    try {
+        const { data, error } = await supabase
+            .from('Usuarios')
+            .update({ nombres, apellidos, email })
+            .eq('id', userId)
+            .select('nombres, apellidos, email') // Devolvemos los datos actualizados
+            .single();
+
+        if (error) {
+            // Manejamos el error de email duplicado
+            if (error.code === '23505') {
+                return res.status(409).json({ message: 'Ese email ya está siendo utilizado por otra cuenta.' });
+            }
+            throw error;
+        }
+        res.json({ message: '¡Perfil actualizado con éxito!', user: data });
+    } catch (error) {
+        console.error("Error al actualizar el perfil:", error);
+        res.status(500).json({ message: 'Error interno del servidor al actualizar el perfil.' });
+    }
+});
+
 // --- RUTA PARA ACTUALIZAR CUALQUIER USUARIO (SOLO ADMIN) ---
 router.put('/:id', isAdmin, [
     body('nombres').not().isEmpty().withMessage('El nombre es requerido.'), 
@@ -65,14 +101,14 @@ router.put('/:id', isAdmin, [
     const errors = validationResult(req);
     if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
-    const { id } = req.params;
+    const userId = req.user.id;
     const { nombres, apellidos, email, id_rol } = req.body;
 
     try {
         const { data, error } = await supabase
             .from('Usuarios')
             .update({ nombres, apellidos, email, id_rol })
-            .eq('id', id)
+            .eq('id', userId)
             .select('id, nombres, apellidos, email, id_rol') // Devolvemos los datos actualizados
             .single();
 

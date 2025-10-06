@@ -94,6 +94,7 @@ function ClientFormPage() {
                 console.log("¡La fecha es válida!");
                 return null;
             },
+            notas: (value) => (value && value.length > 300 ? 'Las notas no pueden exceder los 300 caracteres.' : null),
         },
     });
 

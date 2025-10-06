@@ -17,6 +17,7 @@ function ProfilePage() {
   const [initialLoadError, setInitialLoadError] = useState(''); 
   const [actionError, setActionError] = useState(''); 
   const [actionSuccess, setActionSuccess] = useState('');
+  const [updateError, setUpdateError] = useState('');
 
   // --- ESTADO Y LÓGICA PARA 2FA ---
   const [opened, { open, close }] = useDisclosure(false); // Hook para el modal
@@ -56,16 +57,25 @@ function ProfilePage() {
     e.preventDefault();
     setError('');
     setSuccess('');
-    setUpdateError('');
-    setUpdateSuccess(''); 
+    //setUpdateError('');
+    //setUpdateSuccess(''); 
     setLoading(true);
     try {
       const token = localStorage.getItem('authToken');
       const apiUrl = `${import.meta.env.VITE_API_BASE_URL}/api/users/me`;
       await axios.put(apiUrl, formData, { headers: { 'Authorization': `Bearer ${token}` }});
-      setSuccess('¡Perfil actualizado correctamente!');
+      notifications.show({
+            title: '¡Guardado!',
+            message: 'Tu perfil ha sido actualizado correctamente.',
+            color: 'green'
+        });
     } catch (err) {
-      setError(err.response?.data?.message || 'Error al actualizar.');
+      const errorMsg = err.response?.data?.message || 'Error al actualizar el perfil.';
+        notifications.show({
+            title: '¡Oh, no!',
+            message: errorMsg,
+            color: 'red'
+        });
     } finally {
       setLoading(false);
     }
