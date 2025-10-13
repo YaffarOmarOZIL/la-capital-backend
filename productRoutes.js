@@ -45,7 +45,7 @@ router.get('/public/:id', async (req, res) => {
         }
         const { data, error } = await supabase
             .from('Productos')
-            .select('*, ActivosDigitales ( urls_imagenes )')
+            .select('*, ActivosDigitales ( urls_imagenes, url_marker_patt )')
             .eq('id', id)
             .single();
 
