@@ -1,6 +1,4 @@
-// En src/pages/ARViewerPage.jsx (Versión 2.0 - Funcional)
-
-import 'aframe'; // ¡Importante! Mantenemos esto
+// En src/pages/ARViewerPage.jsx (Versión FINAL Y OFICIAL)
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
@@ -13,53 +11,51 @@ function ARViewerPage() {
     const [error, setError] = useState('');
 
     useEffect(() => {
-        // --- Carga los datos del producto desde nuestra NUEVA RUTA PÚBLICA ---
         const fetchAssetData = async () => {
             try {
                 const apiUrl = `${import.meta.env.VITE_API_BASE_URL}/api/products/public/${productId}`;
                 const { data } = await axios.get(apiUrl);
-
                 if (data.ActivosDigitales?.urls_imagenes) {
-                    // Cogemos la imagen de perspectiva, o la frontal, o la que sea.
                     const imageUrl = data.ActivosDigitales.urls_imagenes.perspectiva || data.ActivosDigitales.urls_imagenes.frente || Object.values(data.ActivosDigitales.urls_imagenes)[0];
                     if (!imageUrl) throw new Error();
                     setAssetData({ imageUrl });
                 } else {
                     throw new Error();
                 }
-            } catch (err) {
-                setError('Este producto no tiene una vista de AR disponible.');
-            } finally {
-                setLoading(false);
-            }
+            } catch (err) { setError('Este producto no tiene una vista de AR disponible.'); }
+            finally { setLoading(false); }
         };
-
-        // Inyectamos el script de AR.js
-        const arjsScript = document.createElement('script');
-        arjsScript.src = "https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js";
-        arjsScript.onload = fetchAssetData;
-        document.body.appendChild(arjsScript);
-
-        return () => { document.body.removeChild(arjsScript); }; // Limpiamos al salir
+        fetchAssetData();
     }, [productId]);
 
     if (loading) return <Center h="100vh"><Loader /></Center>;
-    if (error) return <Center h="100vh" p="md"><Alert color="red">{error}</Alert></Center>;
-    if (!assetData) return <Center h="100vh"><Alert color="yellow">No se encontró el activo para mostrar.</Alert></Center>;
+    if (error || !assetData) return <Center h="100vh"><Alert color="red">{error || 'No se encontró el producto.'}</Alert></Center>;
 
     return (
         <div style={{ position: 'relative', width: '100vw', height: '100vh' }}>
-            <a-scene embedded arjs='sourceType: webcam; trackingMethod: best; debugUIEnabled: false;'>
+            {/* ----- ¡LA ESCENA AR, 100% SEGÚN LA DOCUMENTACIÓN! ----- */}
+            <a-scene embedded arjs='sourceType: webcam; debugUIEnabled: false;'>
                 <a-assets>
-                    <img id="sprite" src={assetData.imageUrl} crossOrigin="anonymous" alt="Product Sprite"/>
+                    <img id="sprite" src={assetData.imageUrl} crossOrigin="anonymous" alt="Sprite del Producto"/>
                 </a-assets>
                 
-                {/* Nuestra imagen "Sprite" que siempre mira a la cámara */}
-                <a-image src="#sprite" width="1" height="1" position="0 0.5 -3" look-at="[camera]"></a-image>
-
+                {/* 
+                    Le decimos que busque el marcador "hiro" (el que ya conoce).
+                    ¡La magia es que el Sprite ahora estará "pegado" al marcador!
+                */}
+                <a-marker preset='hiro'>
+                    <a-image 
+                        src="#sprite"
+                        width="1.5" height="1.5"
+                        position="0 0.5 0"
+                        rotation="-90 0 0" // Lo ponemos "plano" sobre el marcador
+                        look-at="[camera]" // ¡Y hacemos que nos mire siempre!
+                    ></a-image>
+                </a-marker>
+                
                 <a-camera-static />
             </a-scene>
-            {/* ¡BONUS! Un botón para volver atrás, ¡esencial para la UX! */}
+            
             <Button component={Link} to="/experiencia-cliente" variant="default" style={{ position: 'absolute', top: '20px', left: '20px', zIndex: 10 }}>
                 Volver
             </Button>

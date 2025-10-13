@@ -14,6 +14,20 @@ const VISTAS = [ { id: 'frente', label: 'Vista Frontal' }, { id: 'lado_d', label
 
 const resizeImage = (file, maxSize = 1024) => { return new Promise((resolve) => { const img = new window.Image(); img.src = URL.createObjectURL(file); img.onload = () => { let { width, height } = img; if (width > height) { if (width > maxSize) { height *= maxSize / width; width = maxSize; } } else { if (height > maxSize) { width *= maxSize / height; height = maxSize; } } const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = height; canvas.getContext('2d').drawImage(img, 0, 0, width, height); canvas.toBlob((blob) => { resolve(new File([blob], file.name.split('.')[0] + '.png', { type: 'image/png' })); }, 'image/png', 0.9); }; }); };
 
+const createPattFileFromImageUrl = (imageUrl) => {
+    return new Promise((resolve, reject) => {
+        const image = new window.Image();
+        image.crossOrigin = 'anonymous';
+        image.onload = () => {
+            const patternFileString = THREEx.ArPatternFile.encodeImage(image);
+            const blob = new Blob([patternFileString], { type: 'text/plain' });
+            resolve(new File([blob], "marker.patt", { type: "text/plain" }));
+        };
+        image.onerror = reject;
+        image.src = imageUrl;
+    });
+};
+
 function ProductSpritePage() {
     const { id: productId } = useParams();
     const navigate = useNavigate();
@@ -130,6 +144,37 @@ function ProductSpritePage() {
             notifications.show({ title: 'Error', message: 'No se pudo guardar el código QR.', color: 'red' });
         }
     };
+
+    const handleGenerateAndSaveMarker = async () => {
+        if (!qrRef.current) {
+            notifications.show({ title: 'Error', message: 'Primero debes generar un código QR.', color: 'red' });
+            return;
+        }
+
+        try {
+            // 1. Obtenemos la imagen del QR que ya está en pantalla
+            const qrImageUrl = qrRef.current.toDataURL();
+
+            // 2. ¡Llamamos a nuestra nueva y flamante función "entrenadora"!
+            const pattFile = await createPattFileFromImageUrl(qrImageUrl);
+
+            // 3. Lo subimos al backend (tu lógica de FormData y axios es perfecta para esto)
+            const formData = new FormData();
+            formData.append('markerFile', pattFile);
+            
+            const token = localStorage.getItem('authToken');
+            const apiUrl = `${import.meta.env.VITE_API_BASE_URL}/api/products/${productId}/assets/marker`;
+            await axios.post(apiUrl, formData, { headers: { Authorization: `Bearer ${token}` } });
+            
+            notifications.show({ title: '¡Éxito!', message: 'El marcador AR (.patt) se ha guardado en el sistema.', color: 'green' });
+            // Aquí podríamos recargar los datos para mostrar la URL del .patt guardado
+            
+        } catch (error) {
+            console.error("Error al generar o guardar el marcador:", error);
+            notifications.show({ title: 'Error', message: 'No se pudo procesar el marcador AR.', color: 'red' });
+        }
+    };
+    
 
     
     if (loading) return <Center h="80vh"><Loader /></Center>;
