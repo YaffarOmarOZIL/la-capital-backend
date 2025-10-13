@@ -74,33 +74,32 @@ router.post('/login', [
     const { email, password } = req.body;
 
     try {
-        // 1. Buscamos al cliente por su email
+        // 1. Buscamos al cliente por su email y pedimos los campos correctos
         const { data: cliente, error: findError } = await supabase
             .from('Clientes')
-            .select('id, nombres, apellidos, password_hash') // Pedimos solo el id y la contraseña encriptada
+            .select('id, nombres, apellidos, password_hash') // <-- ¡Aseguramos que pedimos nombres y apellidos!
             .eq('email', email)
             .single();
 
-        // Si no encontramos el email O si el cliente no tiene contraseña guardada, damos error.
         if (findError || !cliente || !cliente.password_hash) {
             return res.status(401).json({ message: 'Credenciales inválidas.' });
         }
 
-        // 2. Comparamos la contraseña que nos mandan con la que está en la BDD
+        // 2. Comparamos la contraseña
         const isMatch = await bcrypt.compare(password, cliente.password_hash);
-
         if (!isMatch) {
-            return res.status(401).json({ message: 'Credenciales inválidas.' }); // ¡Mismo error por seguridad!
+            return res.status(401).json({ message: 'Credenciales inválidas.' });
         }
         
-        // 3. ¡Creamos el pasaporte VIP (JWT)!
+        // 3. ¡CREAMOS EL PASAPORTE CORRECTAMENTE CON BACKTICKS!
         const payload = {
             id: cliente.id,
-            nombre: '${cliente.nombres} ${cliente.apellidos}', // <-- ¡Añadimos el nombre!
-            role: 'Cliente' // Un rol específico para diferenciarlo de los empleados
+            // Construimos el nombre de verdad, usando las variables
+            nombre: `${cliente.nombres} ${cliente.apellidos}`, // <-- ¡LA MAGIA!
+            role: 'Cliente'
         };
 
-        const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' }); // El pasaporte dura 7 días
+        const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' });
 
         res.json({ token });
 
