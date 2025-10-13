@@ -1,6 +1,5 @@
 // En src/pages/ARViewerPage.jsx (Versión 4.0 - La Experiencia Social y Centrada)
 
-import 'aframe'; // Importamos a-frame una sola vez
 import { useState, useEffect, memo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
@@ -10,48 +9,20 @@ import { IconHeart, IconThumbUp, IconMessageCircle, IconSend, IconArrowLeft } fr
 // --- ¡El componente Mágico de la Escena AR, ahora "Memoizado"! ---
 // memo() es un truco de React para evitar que la escena se redibuje innecesariamente
 const ARScene = memo(({ imageUrl, productName, productId }) => {
-
-    useEffect(() => {
-        // Inyectamos el script de AR.js solo cuando este componente se monta
-        const arjsScript = document.createElement('script');
-        arjsScript.src = "https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js";
-        document.body.appendChild(arjsScript);
-        
-        // Lo limpiamos cuando el componente se va
-        return () => {
-            if (document.body.contains(arjsScript)) {
-                document.body.removeChild(arjsScript);
-            }
-        };
-    }, []); // El array vacío asegura que esto solo pase una vez
-
     return (
-        // El contenedor ahora define el tamaño del recuadro
         <Box w="100%" style={{ aspectRatio: '4/3', overflow: 'hidden', borderRadius: 'var(--mantine-radius-md)' }}>
-            <a-scene embedded arjs='sourceType: webcam; debugUIEnabled: false;'>
+            <a-scene embedded vr-mode-ui="enabled: false" arjs='sourceType: webcam; debugUIEnabled: false;'>
                 <a-assets>
                     <img id="sprite" src={imageUrl} crossOrigin="anonymous" alt={productName} />
                 </a-assets>
-
                 <a-marker type='pattern' url={`/marker-prod-${productId}.patt`}>
-                    
-                    {/* ----- ¡LA CORRECCIÓN MÁGICA! ----- */}
-                    {/* 
-                        'position="0 0 0"' => Centra el "pivote" del objeto en el marcador.
-                        'rotation="-90 0 0"' => Lo pone "plano".
-                        'look-at="[camera]"' => Hace que nos mire.
-                        'animation' => ¡Un pequeño bonus! Hace que aparezca suavemente.
-                    */}
                     <a-entity position="0 0 0" rotation="-90 0 0" look-at="[camera]">
                         <a-image 
-                            src="#sprite"
-                            width="1" height="1"
+                            src="#sprite" width="1" height="1"
                             animation="property: scale; to: 1 1 1; from: 0.2 0.2 0.2; dur: 500; easing: easeOutQuad;"
-                        ></a-image>
+                        />
                     </a-entity>
-
                 </a-marker>
-                
                 <a-entity camera />
             </a-scene>
         </Box>
