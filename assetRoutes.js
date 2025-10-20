@@ -147,4 +147,73 @@ router.put('/products/:productId/assets/qr', isAdmin, async (req, res) => {
     }
 });
 
+// --- NUEVAS RUTAS PARA LA ADMINISTRACIÓN DE MODELOS 3D ---
+
+// 1. OBTENER TODOS los modelos 3D generados para un producto
+router.get('/products/:productId/assets/models', isAdmin, async (req, res) => {
+    const { productId } = req.params;
+
+    try {
+        // Usamos la API de Storage de Supabase para listar archivos en el bucket
+        const { data, error } = await supabase.storage
+            .from('modelos-3d')
+            .list('', { // Buscamos en la raíz del bucket
+                search: `producto_${productId}` // Con un patrón que incluya el ID del producto
+            });
+
+        if (error) throw error;
+        
+        // Obtenemos la URL pública del modelo actualmente activo en la DB para marcarlo
+        const { data: activeAsset, error: activeAssetError } = await supabase
+            .from('ActivosDigitales')
+            .select('url_modelo_3d')
+            .eq('id_producto', productId)
+            .single();
+
+        // Construimos la respuesta con URLs públicas y el estado activo
+        const models = data
+            .filter(file => file.name.endsWith('.glb')) // Nos aseguramos de que solo sean archivos GLB
+            .map(file => {
+                const publicUrl = supabase.storage.from('modelos-3d').getPublicUrl(file.name).data.publicUrl;
+                return {
+                    name: file.name,
+                    url: publicUrl,
+                    isActive: activeAsset ? publicUrl === activeAsset.url_modelo_3d : false
+                };
+            });
+            
+        res.json(models);
+    } catch (error) {
+        console.error(`Error al listar modelos 3D para el producto ${productId}:`, error);
+        res.status(500).json({ message: "Error en el servidor al listar modelos." });
+    }
+});
+
+
+// 2. ESTABLECER un modelo 3D como el ACTIVO para la experiencia AR
+router.put('/products/:productId/assets/set-active-model', isAdmin, async (req, res) => {
+    const { productId } = req.params;
+    const { modelUrl } = req.body; // El frontend nos enviará la URL del modelo a activar
+
+    if (!modelUrl) {
+        return res.status(400).json({ message: 'No se proporcionó la URL del modelo.' });
+    }
+
+    try {
+        const { data, error } = await supabase
+            .from('ActivosDigitales')
+            .update({ url_modelo_3d: modelUrl })
+            .eq('id_producto', productId)
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        res.json({ message: 'Modelo activo actualizado con éxito.', asset: data });
+    } catch (error) {
+        console.error(`Error al activar el modelo para el producto ${productId}:`, error);
+        res.status(500).json({ message: "Error en el servidor al activar el modelo." });
+    }
+});
+
 module.exports = router;

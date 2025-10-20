@@ -1,321 +1,292 @@
-// En src/pages/ProductSpritePage.jsx (VERSIÓN CON GENERACIÓN 3D AVANZADA)
+// En src/pages/ProductSpritePage.jsx (VERSIÓN FINAL CORREGIDA)
+
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Title, Text, Paper, Button, Group, Loader, Center, SimpleGrid, FileButton, Image, Box, Stack, Modal, Divider, Slider } from '@mantine/core';
+import { Title, Text, Paper, Button, Group, Loader, Center, SimpleGrid, FileButton, Image, Box, Stack, Modal, Divider, SegmentedControl, Slider, Badge } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { IconUpload, IconCamera, IconPhotoOff, IconEdit, IconCube, IconRefreshDot, IconDimensions } from '@tabler/icons-react';
-import ImageEditor from '../components/ImageEditor';
-import { removeBackground } from '@imgly/background-removal';
-import { QRCodeCanvas } from 'qrcode.react';
+import { IconUpload, IconCamera, IconBox, IconCylinder, IconSphere, IconSettings, IconCircleCheck, IconPhoto } from '@tabler/icons-react';
 import * as THREE from 'three';
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 
-const VISTAS = [ { id: 'frente', label: 'Vista Frontal' }, { id: 'lado_d', label: 'Lateral Derecho' }, { id: 'perspectiva', label: 'En Perspectiva' }, { id: 'atras', label: 'Vista Trasera' }, { id: 'lado_i', label: 'Lateral Izquierdo' }, { id: 'arriba', label: 'Desde Arriba (Cenital)' } ];
+const VISTAS = [ { id: 'frente', label: 'Vista Frontal' }, { id: 'lado_d', label: 'Lateral Derecho' }, { id: 'atras', label: 'Vista Trasera' }, { id: 'lado_i', label: 'Lateral Izquierdo' }, { id: 'arriba', label: 'Desde Arriba (Cenital)' }, { id: 'perspectiva', label: 'En Perspectiva' } ];
 const resizeImage = (file, maxSize = 1024) => new Promise((resolve) => { const img = new window.Image(); img.src = URL.createObjectURL(file); img.onload = () => { let { width, height } = img; if (width > height) { if (width > maxSize) { height *= maxSize / width; width = maxSize; } } else { if (height > maxSize) { width *= maxSize / height; height = maxSize; } } const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = height; canvas.getContext('2d').drawImage(img, 0, 0, width, height); canvas.toBlob((blob) => { resolve(new File([blob], file.name.split('.')[0] + '.png', { type: 'image/png' })); }, 'image/png', 0.9); }; });
 
 function ProductSpritePage() {
+    // --- ESTADOS ---
     const { id: productId } = useParams();
     const navigate = useNavigate();
     const [product, setProduct] = useState(null);
     const [loading, setLoading] = useState(true);
     const [uploading, setUploading] = useState(false);
     const [images, setImages] = useState({});
-    const [modal, setModal] = useState({ opened: false, vistaId: null, file: null, mode: null });
-    const [isProcessingAI, setIsProcessingAI] = useState(false);
-    const qrRef = useRef();
-
-    // --- NUEVOS ESTADOS PARA LA GENERACIÓN 3D AVANZADA ---
-    const [isGeneratorModalOpen, setIsGeneratorModalOpen] = useState(false);
-    const [generatorType, setGeneratorType] = useState(null); // 'revolve' o 'extrude'
-    const [extrusionDepth, setExtrusionDepth] = useState(0.5);
-    const imageRef = useRef(null);
+    const [primitiveModalOpen, setPrimitiveModalOpen] = useState(false);
+    const [galleryModalOpen, setGalleryModalOpen] = useState(false);
+    const [primitiveType, setPrimitiveType] = useState('box');
+    const [dimensions, setDimensions] = useState({ w: 1, h: 1, d: 1, r: 0.5 });
+    const [models, setModels] = useState([]);
     const previewCanvasRef = useRef(null);
     
-    // Función para abrir el modal de generación 3D
-    const openGeneratorModal = (type) => {
-        setGeneratorType(type);
-        setIsGeneratorModalOpen(true);
-    };
-
-    // Función para cerrar y limpiar el modal
-    const closeGeneratorModal = () => {
-        setIsGeneratorModalOpen(false);
-        setGeneratorType(null);
-    };
-
-    // Efecto para manejar la vista previa en 3D del extrusor
+    // --- LÓGICA PRINCIPAL ---
     useEffect(() => {
-        if (generatorType !== 'extrude' || !isGeneratorModalOpen || !previewCanvasRef.current) return;
-        
-        let scene, camera, renderer, mesh;
-        const init = () => {
-            scene = new THREE.Scene();
-            camera = new THREE.PerspectiveCamera(75, 2, 0.1, 1000);
-            camera.position.z = 1.5;
-
-            renderer = new THREE.WebGLRenderer({ canvas: previewCanvasRef.current, alpha: true });
-            renderer.setSize(300, 300);
-
-            const frontTexture = new THREE.TextureLoader().load(images.frente.preview);
-            const frontMaterial = new THREE.MeshBasicMaterial({ map: frontTexture, transparent: true });
-            const sideMaterial = new THREE.MeshBasicMaterial({ color: 0x808080 });
-            
-            const shape = new THREE.Shape();
-            shape.moveTo(-0.5, -0.5); shape.lineTo(0.5, -0.5); shape.lineTo(0.5, 0.5); shape.lineTo(-0.5, 0.5);
-            
-            const extrudeSettings = { steps: 1, depth: extrusionDepth, bevelEnabled: false };
-            const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
-            
-            mesh = new THREE.Mesh(geometry, [frontMaterial, sideMaterial]);
-            scene.add(mesh);
-            
-            animate();
-        };
-
-        const animate = () => {
-            if (!renderer) return; // Si se limpió, paramos
-            requestAnimationFrame(animate);
-            mesh.rotation.y += 0.01;
-            mesh.geometry = new THREE.ExtrudeGeometry(mesh.geometry.parameters.shapes, { ...mesh.geometry.parameters.options, depth: extrusionDepth });
-            renderer.render(scene, camera);
-        };
-
-        init();
-        
-        // Limpieza al cerrar el modal
-        return () => {
-            renderer.dispose();
-            scene.clear();
-            renderer = null;
-        };
-
-    }, [generatorType, isGeneratorModalOpen, extrusionDepth, images.frente]);
-
-
-    // El resto de tus useEffects y funciones de manejo de archivos no cambian...
-    // (Pego solo los relevantes para mantener el snippet más corto, pero no los borres)
-     useEffect(() => {
         const initialize = async () => {
+            setLoading(true);
             try {
                 const token = localStorage.getItem('authToken');
                 const { data } = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/products/${productId}`, { headers: { Authorization: `Bearer ${token}` } });
                 setProduct(data);
                 if (data.ActivosDigitales?.urls_imagenes) {
-                    setImages(Object.entries(data.ActivosDigitales.urls_imagenes).reduce((acc, [key, value]) => ({...acc, [key]: {preview: value, file: null, source: 'db'}}), {}));
+                    const initialImages = Object.entries(data.ActivosDigitales.urls_imagenes).reduce((acc, [key, value]) => ({...acc, [key]: {preview: value, file: null, source: 'db'}}), {});
+                    setImages(initialImages);
                 }
             } catch (error) { notifications.show({ title: 'Error', message: 'No se pudo cargar el producto.', color: 'red' }); }
             setLoading(false);
         };
         initialize();
     }, [productId]);
-    
-    // ... Tus otras funciones como handleFileChange, handleAIProcess, etc.
-     const handleFileChange = async (file, vistaId) => { if (!file) return; const resized = await resizeImage(file); setModal({ opened: true, vistaId, file: resized, mode: 'chooser' }); };
-    const handleAIProcess = async () => { setIsProcessingAI(true); try { const blob = await removeBackground(modal.file); const finalFile = new File([blob], modal.file.name, { type: 'image/png' }); onProcessComplete(finalFile, modal.vistaId); } catch (error) { notifications.show({ title: 'Error de IA', message: 'No se pudo quitar el fondo.', color: 'red' }); closeAllModals(); } finally { setIsProcessingAI(false); } };
-    const handleManualProcess = () => setModal(prev => ({ ...prev, mode: 'canvas' }));
-    const onProcessComplete = (processedFile, vistaId) => { setImages(prev => ({ ...prev, [vistaId]: { preview: URL.createObjectURL(processedFile), file: processedFile, source: 'new' } })); closeAllModals(); };
-    const closeAllModals = () => setModal({ opened: false, vistaId: null, file: null, mode: null });
-    const handleSubmit = async () => { setUploading(true); const formData = new FormData(); for (const vistaId in images) { if (images[vistaId].source === 'new') formData.append(vistaId, images[vistaId].file); } try { const token = localStorage.getItem('authToken'); const apiUrl = `${import.meta.env.VITE_API_BASE_URL}/api/products/${productId}/assets/images`; await axios.post(apiUrl, formData, { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' } }); notifications.show({ title: '¡Éxito!', message: 'Los cambios se han guardado correctamente.', color: 'green' }); window.location.reload(); } catch (error) { notifications.show({ title: 'Error', message: 'No se pudieron subir las imágenes.', color: 'red' }); } finally { setUploading(false); } };
 
+    // VISTA PREVIA 3D EN VIVO DEL TALLER
+    useEffect(() => {
+        if (!primitiveModalOpen || !previewCanvasRef.current) return;
+        
+        let renderer, controls;
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xf0f0f0);
+        const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 1000);
+        camera.position.set(0, 0.5, 2.5);
+        renderer = new THREE.WebGLRenderer({ canvas: previewCanvasRef.current, antialias: true });
+        renderer.setSize(400, 400);
 
-    // --- NUEVAS FUNCIONES PARA GENERAR LOS MODELOS 3D ---
-    
-    // 1. GENERACIÓN POR REVOLUCIÓN (LATHE)
-    const handleGenerateRevolveModel = async (pivotX) => {
-        closeGeneratorModal(); // Cerramos el modal de selección
+        controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        scene.add(new THREE.AmbientLight(0xffffff, 1.5));
+        scene.add(new THREE.DirectionalLight(0xffffff, 2.5));
+
+        const textureLoader = new THREE.TextureLoader();
+        const loadedTextures = Object.fromEntries(Object.entries(images).map(([key, val]) => [key, textureLoader.load(val.preview)]));
+        let mesh;
+
+        const updateMesh = () => {
+            if (mesh) scene.remove(mesh);
+            const { w, h, d, r } = dimensions;
+            const greyMaterial = new THREE.MeshStandardMaterial({ color: '#888' });
+
+            if (primitiveType === 'box') { const geometry = new THREE.BoxGeometry(w, h, d); const materials = [ loadedTextures.lado_d ? new THREE.MeshStandardMaterial({ map: loadedTextures.lado_d }) : greyMaterial, loadedTextures.lado_i ? new THREE.MeshStandardMaterial({ map: loadedTextures.lado_i }) : greyMaterial, loadedTextures.arriba ? new THREE.MeshStandardMaterial({ map: loadedTextures.arriba }) : greyMaterial, loadedTextures.arriba ? new THREE.MeshStandardMaterial({ map: loadedTextures.arriba }) : greyMaterial, loadedTextures.frente ? new THREE.MeshStandardMaterial({ map: loadedTextures.frente }) : greyMaterial, loadedTextures.atras ? new THREE.MeshStandardMaterial({ map: loadedTextures.atras }) : greyMaterial ]; mesh = new THREE.Mesh(geometry, materials); }
+            if (primitiveType === 'cylinder') { const geometry = new THREE.CylinderGeometry(r, r, h, 40); const sideTexture = loadedTextures.perspectiva || loadedTextures.frente; const materials = [ sideTexture ? new THREE.MeshStandardMaterial({ map: sideTexture }) : greyMaterial, loadedTextures.arriba ? new THREE.MeshStandardMaterial({ map: loadedTextures.arriba }) : greyMaterial, loadedTextures.arriba ? new THREE.MeshStandardMaterial({ map: loadedTextures.arriba }) : greyMaterial ]; mesh = new THREE.Mesh(geometry, materials); }
+            if (primitiveType === 'sphere') { const geometry = new THREE.SphereGeometry(r, 32, 16); const material = loadedTextures.perspectiva ? new THREE.MeshStandardMaterial({ map: loadedTextures.perspectiva }) : greyMaterial; mesh = new THREE.Mesh(geometry, material); }
+            if (mesh) scene.add(mesh);
+        };
+        updateMesh();
+        
+        const animate = () => { if (!renderer.domElement.isConnected) return; requestAnimationFrame(animate); controls.update(); renderer.render(scene, camera); };
+        animate();
+        
+        return () => { renderer.dispose(); controls.dispose(); };
+    }, [primitiveModalOpen, primitiveType, dimensions, images]);
+
+    // --- MANEJADORES DE ACCIONES ---
+    const handleFileChange = async (file, vistaId) => { if (!file) return; const resized = await resizeImage(file); setImages(prev => ({ ...prev, [vistaId]: { preview: URL.createObjectURL(resized), file: resized, source: 'new' } })); };
+
+    const handleSubmitImages = async () => {
         setUploading(true);
-        notifications.show({ id: 'gen-3d', title: 'Generando Modelo 3D', message: 'Creando modelo por revolución...', loading: true, autoClose: false });
-
-        try {
-            const texture = await new THREE.TextureLoader().loadAsync(images.frente.preview);
-            const scene = new THREE.Scene();
-            const mainGroup = new THREE.Group();
-            const STEPS = 40;
-            
-            const geometry = new THREE.PlaneGeometry(1, 1);
-            const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, side: THREE.DoubleSide, alphaTest: 0.5 });
-
-            for (let i = 0; i < STEPS; i++) {
-                const angle = (i / STEPS) * Math.PI * 2;
-                const plane = new THREE.Mesh(geometry, material);
-                plane.position.x = 0.5 - pivotX; // <- Tu mágica idea en acción
-                
-                const pivot = new THREE.Object3D();
-                pivot.add(plane);
-                pivot.rotation.y = angle;
-                mainGroup.add(pivot);
+        const formData = new FormData();
+        let changesFound = false;
+        for (const vistaId in images) {
+            if (images[vistaId].source === 'new') {
+                formData.append(vistaId, images[vistaId].file);
+                changesFound = true;
             }
-            scene.add(mainGroup);
-            
-            await exportAndUploadGLB(scene, 'revolucion');
-
-        } catch (error) {
-            notifications.update({ id: 'gen-3d', title: 'Error', message: `No se pudo generar el modelo: ${error.message}`, color: 'red', loading: false });
-            setUploading(false);
         }
+        if(!changesFound){
+            notifications.show({ title: 'Sin cambios', message: 'No hay imágenes nuevas para subir.', color: 'blue' });
+            setUploading(false);
+            return;
+        }
+        try {
+            const token = localStorage.getItem('authToken');
+            await axios.post(`${import.meta.env.VITE_API_BASE_URL}/api/products/${productId}/assets/images`, formData, { headers: { Authorization: `Bearer ${token}` } });
+            notifications.show({ title: '¡Éxito!', message: 'Las imágenes se han guardado.', color: 'green' });
+            // Recargamos para que las imágenes tengan URL de DB
+            window.location.reload();
+        } catch (error) { notifications.show({ title: 'Error', message: 'No se pudieron subir las imágenes.', color: 'red' }); } finally { setUploading(false); }
     };
 
-    // 2. GENERACIÓN POR EXTRUSIÓN (PROFUNDIDAD)
-    const handleGenerateExtrudeModel = async () => {
-        closeGeneratorModal(); // Cerramos el modal
+    // FUNCIÓN DE GENERACIÓN 3D CORREGIDA
+    const handleGeneratePrimitiveModel = async () => {
         setUploading(true);
-        notifications.show({ id: 'gen-3d', title: 'Generando Modelo 3D', message: 'Creando modelo por profundidad...', loading: true, autoClose: false });
+        notifications.show({ id: 'gen-3d', title: 'Generando Modelo', message: 'Cargando texturas...', loading: true, autoClose: false });
 
         try {
-            const texture = await new THREE.TextureLoader().loadAsync(images.frente.preview);
+            const textureLoader = new THREE.TextureLoader();
+            // ¡CORRECCIÓN #1: Añadimos crossOrigin para solucionar CORS!
+            textureLoader.setCrossOrigin('anonymous');
+
+            // ¡CORRECCIÓN #2: Esperamos a que TODAS las texturas se carguen antes de continuar!
+            const texturePromises = VISTAS
+                .filter(vista => images[vista.id]?.preview)
+                .map(vista => textureLoader.loadAsync(images[vista.id].preview).then(texture => ({ key: vista.id, texture })));
+            
+            const loadedTextureData = await Promise.all(texturePromises);
+            const loadedTextures = Object.fromEntries(loadedTextureData.map(({ key, texture }) => [key, texture]));
+
+            notifications.update({ id: 'gen-3d', message: 'Construyendo la geometría...', });
+
             const scene = new THREE.Scene();
-            
-            const shape = new THREE.Shape();
-            // Creamos una forma cuadrada simple de 1x1
-            shape.moveTo(-0.5, -0.5); shape.lineTo(0.5, -0.5); shape.lineTo(0.5, 0.5); shape.lineTo(-0.5, 0.5);
-            
-            const extrudeSettings = { steps: 1, depth: extrusionDepth, bevelEnabled: false };
-            const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+            const { w, h, d, r } = dimensions;
+            const greyMaterial = new THREE.MeshStandardMaterial({ color: '#888' });
+            let mesh;
 
-            const frontMaterial = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
-            const sideMaterial = new THREE.MeshBasicMaterial({ color: 0x666666 }); // Color para los lados
-
-            const mesh = new THREE.Mesh(geometry, [frontMaterial, sideMaterial]);
+            // La lógica para crear el mesh es la misma, pero ahora con texturas garantizadas
+            if (primitiveType === 'box') { const geometry = new THREE.BoxGeometry(w, h, d); const materials = [ loadedTextures.lado_d ? new THREE.MeshStandardMaterial({ map: loadedTextures.lado_d }) : greyMaterial, loadedTextures.lado_i ? new THREE.MeshStandardMaterial({ map: loadedTextures.lado_i }) : greyMaterial, loadedTextures.arriba ? new THREE.MeshStandardMaterial({ map: loadedTextures.arriba }) : greyMaterial, loadedTextures.arriba ? new THREE.MeshStandardMaterial({ map: loadedTextures.arriba }) : greyMaterial, loadedTextures.frente ? new THREE.MeshStandardMaterial({ map: loadedTextures.frente }) : greyMaterial, loadedTextures.atras ? new THREE.MeshStandardMaterial({ map: loadedTextures.atras }) : greyMaterial ]; mesh = new THREE.Mesh(geometry, materials); }
+            if (primitiveType === 'cylinder') { const geometry = new THREE.CylinderGeometry(r, r, h, 40); const sideTexture = loadedTextures.perspectiva || loadedTextures.frente; const materials = [ sideTexture ? new THREE.MeshStandardMaterial({ map: sideTexture }) : greyMaterial, loadedTextures.arriba ? new THREE.MeshStandardMaterial({ map: loadedTextures.arriba }) : greyMaterial, loadedTextures.arriba ? new THREE.MeshStandardMaterial({ map: loadedTextures.arriba }) : greyMaterial ]; mesh = new THREE.Mesh(geometry, materials); }
+            if (primitiveType === 'sphere') { const geometry = new THREE.SphereGeometry(r, 32, 16); const material = loadedTextures.perspectiva ? new THREE.MeshStandardMaterial({ map: loadedTextures.perspectiva }) : greyMaterial; mesh = new THREE.Mesh(geometry, material); }
+            if (!mesh) throw new Error('No se pudo construir la forma 3D.');
             scene.add(mesh);
-            
-            await exportAndUploadGLB(scene, 'extrusion');
 
-        } catch (error) {
-            notifications.update({ id: 'gen-3d', title: 'Error', message: `No se pudo generar el modelo: ${error.message}`, color: 'red', loading: false });
-            setUploading(false);
-        }
-    };
-    
-    // 3. FUNCIÓN AYUDANTE PARA EXPORTAR Y SUBIR EL GLB
-    const exportAndUploadGLB = (scene, type) => {
-        return new Promise((resolve, reject) => {
+            notifications.update({ id: 'gen-3d', message: 'Exportando a archivo GLB...', });
+
             const exporter = new GLTFExporter();
             exporter.parse(
                 scene,
                 async (gltfData) => {
                     try {
-                        const glbBlob = new Blob([gltfData], { type: 'model/gltf-binary' });
-                        const glbFile = new File([glbBlob], `modelo_${type}_${productId}.glb`, { type: 'model/gltf-binary' });
+                        const blob = new Blob([gltfData], { type: 'model/gltf-binary' });
+                        const file = new File([blob], `producto_${productId}_${primitiveType}_${Date.now()}.glb`);
                         const formData = new FormData();
-                        formData.append('modelFile', glbFile);
+                        formData.append('modelFile', file);
                         const token = localStorage.getItem('authToken');
-                        const apiUrl = `${import.meta.env.VITE_API_BASE_URL}/api/products/${productId}/assets/model`;
-                        const response = await axios.post(apiUrl, formData, { headers: { Authorization: `Bearer ${token}` } });
-                        
-                        notifications.update({ id: 'gen-3d', title: '¡Éxito!', message: `Modelo 3D (${type}) guardado.`, color: 'green', loading: false });
-                        setUploading(false);
-                        resolve(response.data);
-                    } catch (uploadError) {
-                        reject(uploadError);
-                    }
+                        await axios.post(`${import.meta.env.VITE_API_BASE_URL}/api/products/${productId}/assets/model`, formData, { headers: { Authorization: `Bearer ${token}` } });
+                        notifications.update({ id: 'gen-3d', title: '¡Éxito!', message: `Modelo ${primitiveType} guardado.`, color: 'green', loading: false, autoClose: 5000 });
+                    } catch (error) { notifications.update({ id: 'gen-3d', title: 'Error de subida', message: 'No se pudo guardar el modelo en el servidor.', color: 'red', loading: false });
+                    } finally { setUploading(false); setPrimitiveModalOpen(false); }
                 },
-                (error) => { reject(error); },
+                (error) => { throw new Error('No se pudo procesar el modelo 3D para exportación.'); },
                 { binary: true, embedImages: true }
             );
-        });
+        } catch (error) {
+            console.error("Error al generar modelo:", error);
+            notifications.update({ id: 'gen-3d', title: 'Error', message: error.message, color: 'red', loading: false, autoClose: 5000 });
+            setUploading(false);
+        }
+    };
+
+    const fetchModels = async () => {
+        setGalleryModalOpen(true);
+        try {
+            const token = localStorage.getItem('authToken');
+            const { data } = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/products/${productId}/assets/models`, { headers: { Authorization: `Bearer ${token}` } });
+            setModels(data);
+        } catch (error) { notifications.show({ title: 'Error', message: 'No se pudieron cargar los modelos.', color: 'red' }); }
+    };
+
+    const setActiveModel = async (modelUrl) => {
+        try {
+            const token = localStorage.getItem('authToken');
+            await axios.put(`${import.meta.env.VITE_API_BASE_URL}/api/products/${productId}/assets/set-active-model`, { modelUrl }, { headers: { Authorization: `Bearer ${token}` } });
+            notifications.show({ title: '¡Actualizado!', message: 'El nuevo modelo está activo para la experiencia AR.', color: 'green' });
+            setModels(models.map(m => ({ ...m, isActive: m.url === modelUrl })));
+        } catch (error) { notifications.show({ title: 'Error', message: 'No se pudo activar el modelo.', color: 'red' }); }
     };
 
     if (loading) return <Center h="80vh"><Loader /></Center>;
 
+    // --- RENDERIZADO DEL COMPONENTE ---
     return (
         <Paper withBorder p="xl">
-            {/* ... Tu modal de ImageEditor no cambia ... */}
-            <Modal opened={modal.opened} onClose={closeAllModals} title={`Editando: ${modal.vistaId}`} size={modal.mode === 'canvas' ? 'xl' : 'sm'} centered> {modal.mode === 'chooser' && modal.file && ( <Stack align="center"> <Image src={URL.createObjectURL(modal.file)} maw={250} radius="md" /> <Group> <Button onClick={handleAIProcess} loading={isProcessingAI} leftSection={<IconPhotoOff size={16}/>}>Quitar Fondo (IA)</Button> <Button onClick={handleManualProcess} variant="outline" leftSection={<IconEdit size={16}/>}>Editar Manualmente</Button> </Group> </Stack> )} {modal.mode === 'canvas' && modal.file && ( <ImageEditor file={modal.file} onProcessComplete={(file) => onProcessComplete(file, modal.vistaId)} onClear={closeAllModals} /> )} </Modal>
-            
+            {/* ... El resto del JSX es idéntico al de la versión anterior ... */}
             <Title order={3}>Estudio Fotográfico AR</Title>
             <Text c="dimmed" mb="xl">Producto: <Text span fw={700}>{product?.nombre}</Text></Text>
             
-            <SimpleGrid cols={{ base: 2, sm: 3 }} spacing="lg">
-                {VISTAS.map((vista) => (
+            <SimpleGrid cols={{ base: 2, sm: 3, lg: 6 }} spacing="lg">
+                 {VISTAS.map((vista) => (
                     <Stack key={vista.id} align="center" gap="xs">
                         <Text fw={500} size="sm">{vista.label}</Text>
-                        <Box w={150} h={150} style={{ border: '2px dashed #ccc', borderRadius: '8px', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Box w={150} h={150} style={{ border: '2px dashed #ccc', borderRadius: '8px', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8f9fa' }}>
                             <Image radius="sm" src={images[vista.id]?.preview} fit="contain" style={{ display: images[vista.id] ? 'block' : 'none', width: '100%', height: '100%' }} />
-                            {!images[vista.id] && <IconCamera color='gray' />}
+                            {!images[vista.id] && <IconPhoto color='gray' />}
                         </Box>
-                        <Group gap="xs">
-                            <FileButton onChange={(file) => handleFileChange(file, vista.id)} accept="image/png,image/jpeg,image/webp">
-                                {(props) => <Button {...props} variant="light" size="xs">{images[vista.id] ? 'Cambiar' : 'Seleccionar'}</Button>}
-                            </FileButton>
-                        </Group>
+                         <FileButton onChange={(file) => handleFileChange(file, vista.id)} accept="image/png,image/jpeg,image/webp">
+                            {(props) => <Button {...props} variant="light" size="xs">{images[vista.id] ? 'Cambiar' : 'Subir'}</Button>}
+                        </FileButton>
                     </Stack>
                 ))}
             </SimpleGrid>
-            
+
             <Group justify="flex-end" mt="xl">
                 <Button variant="default" onClick={() => navigate('/admin/products')}>Cancelar</Button>
-                <Button onClick={handleSubmit} loading={uploading} leftSection={<IconUpload size={16}/>}>Guardar Imágenes 2D</Button>
+                <Button onClick={handleSubmitImages} loading={uploading} leftSection={<IconUpload size={16}/>}>Guardar Imágenes 2D</Button>
             </Group>
             
-            <Divider my="xl" label="Generadores de Modelos 3D" labelPosition="center" />
+            <Divider my="xl" label="Gestión de Modelos 3D para AR" labelPosition="center" />
             
-            <Text size="sm" c="dimmed" ta="center" mb="md">Usa la imagen frontal para crear un modelo 3D para la Realidad Aumentada.</Text>
             <Group justify="center">
                 <Button 
-                    onClick={() => openGeneratorModal('revolve')} 
-                    disabled={!images.frente} 
-                    leftSection={<IconRefreshDot size={18} />}
-                    loading={uploading}
+                    onClick={() => setPrimitiveModalOpen(true)} 
+                    disabled={Object.keys(images).length < 6}
+                    leftSection={<IconBox size={18} />}
+                    size="md"
                 >
-                    Crear por Revolución
+                    Taller de Creación 3D
                 </Button>
                 <Button 
-                    onClick={() => openGeneratorModal('extrude')} 
-                    disabled={!images.frente} 
-                    leftSection={<IconDimensions size={18} />}
-                    loading={uploading}
+                    onClick={fetchModels} 
+                    leftSection={<IconSettings size={18} />}
+                    variant="outline"
+                    size="md"
                 >
-                    Crear por Profundidad
+                    Administrar Modelos
                 </Button>
             </Group>
-            {!images.frente && <Text size="xs" c="dimmed" ta="center" mt="xs">Estos botones se activarán cuando subas una imagen frontal.</Text>}
+             {Object.keys(images).length < 6 && <Text size="xs" c="dimmed" ta="center" mt="xs">Sube las 6 imágenes para activar el taller de creación 3D.</Text>}
+            
+            <Modal opened={primitiveModalOpen} onClose={() => setPrimitiveModalOpen(false)} title="Taller de Creación 3D" size="80%" centered>
+                <SimpleGrid cols={2} spacing="xl">
+                    <Stack>
+                        <Text fw={500}>1. Elige una Forma Base</Text>
+                        <SegmentedControl value={primitiveType} onChange={setPrimitiveType} data={[ { label: 'Cubo', value: 'box' }, { label: 'Cilindro', value: 'cylinder' }, { label: 'Esfera', value: 'sphere' } ]} fullWidth />
 
-
-            {/* --- MODAL DINÁMICO PARA LOS GENERADORES 3D --- */}
-            <Modal
-                opened={isGeneratorModalOpen}
-                onClose={closeGeneratorModal}
-                title={generatorType === 'revolve' ? 'Generar por Revolución' : 'Generar por Profundidad'}
-                size="xl"
-                centered
-            >
-                {generatorType === 'revolve' && (
-                    <Stack align="center">
-                        <Text c="dimmed" size="sm" ta="center">Haz clic en la imagen sobre el punto que será el **eje central** del giro.</Text>
-                        <Image
-                            ref={imageRef}
-                            src={images.frente?.preview}
-                            style={{ cursor: 'crosshair', maxWidth: '80%', borderRadius: '8px' }}
-                            onClick={(event) => {
-                                const rect = event.currentTarget.getBoundingClientRect();
-                                const pivotX = (event.clientX - rect.left) / rect.width;
-                                handleGenerateRevolveModel(pivotX);
-                            }}
-                        />
+                        <Text fw={500} mt="md">2. Ajusta las Dimensiones</Text>
+                        {primitiveType === 'box' && <>
+                            <Text size="sm">Ancho:</Text> <Slider value={dimensions.w} onChange={v => setDimensions(d => ({...d, w: v}))} min={0.1} max={3} step={0.05} label={v => v.toFixed(2)} />
+                            <Text size="sm">Alto:</Text> <Slider value={dimensions.h} onChange={v => setDimensions(d => ({...d, h: v}))} min={0.1} max={3} step={0.05} label={v => v.toFixed(2)} />
+                            <Text size="sm">Profundidad:</Text> <Slider value={dimensions.d} onChange={v => setDimensions(d => ({...d, d: v}))} min={0.1} max={3} step={0.05} label={v => v.toFixed(2)} />
+                        </>}
+                         {primitiveType === 'cylinder' && <>
+                            <Text size="sm">Radio:</Text> <Slider value={dimensions.r} onChange={v => setDimensions(d => ({...d, r: v}))} min={0.1} max={2} step={0.05} label={v => v.toFixed(2)} />
+                            <Text size="sm">Altura:</Text> <Slider value={dimensions.h} onChange={v => setDimensions(d => ({...d, h: v}))} min={0.1} max={3} step={0.05} label={v => v.toFixed(2)} />
+                        </>}
+                         {primitiveType === 'sphere' && <>
+                            <Text size="sm">Radio:</Text> <Slider value={dimensions.r} onChange={v => setDimensions(d => ({...d, r: v}))} min={0.1} max={2} step={0.05} label={v => v.toFixed(2)} />
+                        </>}
+                        
+                        <Button onClick={handleGeneratePrimitiveModel} loading={uploading} mt="xl" size="lg">Generar y Guardar Modelo</Button>
                     </Stack>
-                )}
-                {generatorType === 'extrude' && (
-                     <SimpleGrid cols={2} spacing="xl">
-                        <Stack>
-                            <Text fw={500}>1. Ajusta la Profundidad</Text>
-                            <Text c="dimmed" size="sm">Usa el deslizador para darle grosor al modelo.</Text>
-                             <Slider
-                                value={extrusionDepth}
-                                onChange={setExtrusionDepth}
-                                min={0.1} max={2} step={0.05}
-                                label={(value) => value.toFixed(2)}
-                            />
-                             <Button onClick={handleGenerateExtrudeModel} mt="xl">Generar y Guardar Modelo</Button>
-                        </Stack>
-                        <Stack align="center">
-                            <Text fw={500}>2. Vista Previa</Text>
-                            <Box w={300} h={300} style={{ border: '1px solid #ddd', borderRadius: '8px' }}>
-                                <canvas ref={previewCanvasRef} />
-                            </Box>
-                        </Stack>
-                    </SimpleGrid>
-                )}
+                    <Stack align="center">
+                        <Text fw={500}>Vista Previa 3D Interactiva</Text>
+                        <Box w={400} h={400} style={{ border: '1px solid #ddd', borderRadius: '8px' }}>
+                            <canvas ref={previewCanvasRef} />
+                        </Box>
+                        <Text size="xs" c="dimmed">Arrastra para rotar. Rueda para hacer zoom.</Text>
+                    </Stack>
+                </SimpleGrid>
+            </Modal>
+            
+            <Modal opened={galleryModalOpen} onClose={() => setGalleryModalOpen(false)} title="Administrar Modelos 3D" centered>
+                <Stack>
+                    {models.length > 0 ? models.map((model) => (
+                        <Paper withBorder p="sm" key={model.name} radius="md">
+                            <Group justify="space-between">
+                                <Text size="sm" truncate maw={200}>{model.name.replace(`producto_${productId}_`, '').replace('.glb', '')}</Text>
+                                {model.isActive ? (
+                                    <Badge color="green" variant="light" leftSection={<IconCircleCheck size={14}/>}>Activo en AR</Badge>
+                                ) : (
+                                    <Button onClick={() => setActiveModel(model.url)} variant="light" size="xs">Activar para AR</Button>
+                                )}
+                            </Group>
+                        </Paper>
+                    )) : <Text c="dimmed">Aún no has generado modelos 3D para este producto.</Text>}
+                </Stack>
             </Modal>
         </Paper>
     );
