@@ -173,10 +173,11 @@ function AdminLayout() {
                             icon={<IconChartBar size={16} />}
                             disabled
                         />
-                        <MantineNavLink
+                        <MenuLink 
+                            to="/admin/campaigns"
                             label="Campañas de Marketing"
-                            icon={<IconSend size={16} />} // Necesitarás importar IconSend
-                            disabled
+                            icon={<IconSend size={16} />}
+                            onClick={close} // 'close' es la función que cierra el menú, igual que en los otros links
                         />
                         {/* --- GESTIÓN DE PERSONAL --- */}
                         <Text size="xs" tt="uppercase" c="dimmed" fw={700} mt="md">Personal</Text>

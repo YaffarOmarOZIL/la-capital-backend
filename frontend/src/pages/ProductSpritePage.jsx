@@ -1,4 +1,4 @@
-// En src/pages/ProductSpritePage.jsx (VERSIÓN FINAL CORREGIDA)
+// --- ARCHIVO: frontend/src/pages/ProductSpritePage.jsx ---
 
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -9,6 +9,7 @@ import { IconUpload, IconCamera, IconBox, IconCylinder, IconSphere, IconSettings
 import * as THREE from 'three';
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 const VISTAS = [ { id: 'frente', label: 'Vista Frontal' }, { id: 'lado_d', label: 'Lateral Derecho' }, { id: 'atras', label: 'Vista Trasera' }, { id: 'lado_i', label: 'Lateral Izquierdo' }, { id: 'arriba', label: 'Desde Arriba (Cenital)' }, { id: 'perspectiva', label: 'En Perspectiva' } ];
 const resizeImage = (file, maxSize = 1024) => new Promise((resolve) => { const img = new window.Image(); img.src = URL.createObjectURL(file); img.onload = () => { let { width, height } = img; if (width > height) { if (width > maxSize) { height *= maxSize / width; width = maxSize; } } else { if (height > maxSize) { width *= maxSize / height; height = maxSize; } } const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = height; canvas.getContext('2d').drawImage(img, 0, 0, width, height); canvas.toBlob((blob) => { resolve(new File([blob], file.name.split('.')[0] + '.png', { type: 'image/png' })); }, 'image/png', 0.9); }; });
@@ -96,37 +97,31 @@ function ProductSpritePage() {
             if (images[vistaId].source === 'new') {
                 formData.append(vistaId, images[vistaId].file);
                 changesFound = true;
+            } else if (images[vistaId].source === 'db') {
+                 formData.append(vistaId, images[vistaId].preview);
             }
         }
-        if(!changesFound){
-            notifications.show({ title: 'Sin cambios', message: 'No hay imágenes nuevas para subir.', color: 'blue' });
-            setUploading(false);
-            return;
+        if (!changesFound) {
+            notifications.show({ title: 'Sin cambios', message: 'No hay imágenes nuevas o modificadas para subir.', color: 'blue' });
+            setUploading(false); return;
         }
         try {
             const token = localStorage.getItem('authToken');
             await axios.post(`${import.meta.env.VITE_API_BASE_URL}/api/products/${productId}/assets/images`, formData, { headers: { Authorization: `Bearer ${token}` } });
             notifications.show({ title: '¡Éxito!', message: 'Las imágenes se han guardado.', color: 'green' });
-            // Recargamos para que las imágenes tengan URL de DB
             window.location.reload();
         } catch (error) { notifications.show({ title: 'Error', message: 'No se pudieron subir las imágenes.', color: 'red' }); } finally { setUploading(false); }
     };
 
-    // FUNCIÓN DE GENERACIÓN 3D CORREGIDA
     const handleGeneratePrimitiveModel = async () => {
         setUploading(true);
         notifications.show({ id: 'gen-3d', title: 'Generando Modelo', message: 'Cargando texturas...', loading: true, autoClose: false });
-
         try {
             const textureLoader = new THREE.TextureLoader();
-            // ¡CORRECCIÓN #1: Añadimos crossOrigin para solucionar CORS!
             textureLoader.setCrossOrigin('anonymous');
-
-            // ¡CORRECCIÓN #2: Esperamos a que TODAS las texturas se carguen antes de continuar!
             const texturePromises = VISTAS
                 .filter(vista => images[vista.id]?.preview)
                 .map(vista => textureLoader.loadAsync(images[vista.id].preview).then(texture => ({ key: vista.id, texture })));
-            
             const loadedTextureData = await Promise.all(texturePromises);
             const loadedTextures = Object.fromEntries(loadedTextureData.map(({ key, texture }) => [key, texture]));
 
@@ -136,8 +131,7 @@ function ProductSpritePage() {
             const { w, h, d, r } = dimensions;
             const greyMaterial = new THREE.MeshStandardMaterial({ color: '#888' });
             let mesh;
-
-            // La lógica para crear el mesh es la misma, pero ahora con texturas garantizadas
+            
             if (primitiveType === 'box') { const geometry = new THREE.BoxGeometry(w, h, d); const materials = [ loadedTextures.lado_d ? new THREE.MeshStandardMaterial({ map: loadedTextures.lado_d }) : greyMaterial, loadedTextures.lado_i ? new THREE.MeshStandardMaterial({ map: loadedTextures.lado_i }) : greyMaterial, loadedTextures.arriba ? new THREE.MeshStandardMaterial({ map: loadedTextures.arriba }) : greyMaterial, loadedTextures.arriba ? new THREE.MeshStandardMaterial({ map: loadedTextures.arriba }) : greyMaterial, loadedTextures.frente ? new THREE.MeshStandardMaterial({ map: loadedTextures.frente }) : greyMaterial, loadedTextures.atras ? new THREE.MeshStandardMaterial({ map: loadedTextures.atras }) : greyMaterial ]; mesh = new THREE.Mesh(geometry, materials); }
             if (primitiveType === 'cylinder') { const geometry = new THREE.CylinderGeometry(r, r, h, 40); const sideTexture = loadedTextures.perspectiva || loadedTextures.frente; const materials = [ sideTexture ? new THREE.MeshStandardMaterial({ map: sideTexture }) : greyMaterial, loadedTextures.arriba ? new THREE.MeshStandardMaterial({ map: loadedTextures.arriba }) : greyMaterial, loadedTextures.arriba ? new THREE.MeshStandardMaterial({ map: loadedTextures.arriba }) : greyMaterial ]; mesh = new THREE.Mesh(geometry, materials); }
             if (primitiveType === 'sphere') { const geometry = new THREE.SphereGeometry(r, 32, 16); const material = loadedTextures.perspectiva ? new THREE.MeshStandardMaterial({ map: loadedTextures.perspectiva }) : greyMaterial; mesh = new THREE.Mesh(geometry, material); }
@@ -147,25 +141,22 @@ function ProductSpritePage() {
             notifications.update({ id: 'gen-3d', message: 'Exportando a archivo GLB...', });
 
             const exporter = new GLTFExporter();
-            exporter.parse(
-                scene,
-                async (gltfData) => {
+            exporter.parse( scene, async (gltfData) => {
                     try {
                         const blob = new Blob([gltfData], { type: 'model/gltf-binary' });
-                        const file = new File([blob], `producto_${productId}_${primitiveType}_${Date.now()}.glb`);
+                        const file = new File([blob], `modelo_producto_${productId}_${primitiveType}_${Date.now()}.glb`);
                         const formData = new FormData();
                         formData.append('modelFile', file);
                         const token = localStorage.getItem('authToken');
                         await axios.post(`${import.meta.env.VITE_API_BASE_URL}/api/products/${productId}/assets/model`, formData, { headers: { Authorization: `Bearer ${token}` } });
                         notifications.update({ id: 'gen-3d', title: '¡Éxito!', message: `Modelo ${primitiveType} guardado.`, color: 'green', loading: false, autoClose: 5000 });
-                    } catch (error) { notifications.update({ id: 'gen-3d', title: 'Error de subida', message: 'No se pudo guardar el modelo en el servidor.', color: 'red', loading: false });
+                    } catch (error) { notifications.update({ id: 'gen-3d', title: 'Error de subida', message: 'No se pudo guardar el modelo.', color: 'red', loading: false });
                     } finally { setUploading(false); setPrimitiveModalOpen(false); }
                 },
-                (error) => { throw new Error('No se pudo procesar el modelo 3D para exportación.'); },
+                (error) => { console.error(error); throw new Error('No se pudo procesar el modelo 3D para exportación.'); },
                 { binary: true, embedImages: true }
             );
         } catch (error) {
-            console.error("Error al generar modelo:", error);
             notifications.update({ id: 'gen-3d', title: 'Error', message: error.message, color: 'red', loading: false, autoClose: 5000 });
             setUploading(false);
         }
@@ -191,10 +182,8 @@ function ProductSpritePage() {
 
     if (loading) return <Center h="80vh"><Loader /></Center>;
 
-    // --- RENDERIZADO DEL COMPONENTE ---
     return (
         <Paper withBorder p="xl">
-            {/* ... El resto del JSX es idéntico al de la versión anterior ... */}
             <Title order={3}>Estudio Fotográfico AR</Title>
             <Text c="dimmed" mb="xl">Producto: <Text span fw={700}>{product?.nombre}</Text></Text>
             
@@ -221,20 +210,10 @@ function ProductSpritePage() {
             <Divider my="xl" label="Gestión de Modelos 3D para AR" labelPosition="center" />
             
             <Group justify="center">
-                <Button 
-                    onClick={() => setPrimitiveModalOpen(true)} 
-                    disabled={Object.keys(images).length < 6}
-                    leftSection={<IconBox size={18} />}
-                    size="md"
-                >
+                <Button onClick={() => setPrimitiveModalOpen(true)} disabled={Object.keys(images).length < 6} leftSection={<IconBox size={18} />} size="md">
                     Taller de Creación 3D
                 </Button>
-                <Button 
-                    onClick={fetchModels} 
-                    leftSection={<IconSettings size={18} />}
-                    variant="outline"
-                    size="md"
-                >
+                <Button onClick={fetchModels} leftSection={<IconSettings size={18} />} variant="outline" size="md">
                     Administrar Modelos
                 </Button>
             </Group>
@@ -245,7 +224,6 @@ function ProductSpritePage() {
                     <Stack>
                         <Text fw={500}>1. Elige una Forma Base</Text>
                         <SegmentedControl value={primitiveType} onChange={setPrimitiveType} data={[ { label: 'Cubo', value: 'box' }, { label: 'Cilindro', value: 'cylinder' }, { label: 'Esfera', value: 'sphere' } ]} fullWidth />
-
                         <Text fw={500} mt="md">2. Ajusta las Dimensiones</Text>
                         {primitiveType === 'box' && <>
                             <Text size="sm">Ancho:</Text> <Slider value={dimensions.w} onChange={v => setDimensions(d => ({...d, w: v}))} min={0.1} max={3} step={0.05} label={v => v.toFixed(2)} />
@@ -259,7 +237,6 @@ function ProductSpritePage() {
                          {primitiveType === 'sphere' && <>
                             <Text size="sm">Radio:</Text> <Slider value={dimensions.r} onChange={v => setDimensions(d => ({...d, r: v}))} min={0.1} max={2} step={0.05} label={v => v.toFixed(2)} />
                         </>}
-                        
                         <Button onClick={handleGeneratePrimitiveModel} loading={uploading} mt="xl" size="lg">Generar y Guardar Modelo</Button>
                     </Stack>
                     <Stack align="center">
@@ -272,24 +249,72 @@ function ProductSpritePage() {
                 </SimpleGrid>
             </Modal>
             
-            <Modal opened={galleryModalOpen} onClose={() => setGalleryModalOpen(false)} title="Administrar Modelos 3D" centered>
+            <Modal opened={galleryModalOpen} onClose={() => setGalleryModalOpen(false)} title="Administrar Modelos 3D" size="xl" centered>
                 <Stack>
                     {models.length > 0 ? models.map((model) => (
                         <Paper withBorder p="sm" key={model.name} radius="md">
-                            <Group justify="space-between">
-                                <Text size="sm" truncate maw={200}>{model.name.replace(`producto_${productId}_`, '').replace('.glb', '')}</Text>
-                                {model.isActive ? (
-                                    <Badge color="green" variant="light" leftSection={<IconCircleCheck size={14}/>}>Activo en AR</Badge>
-                                ) : (
-                                    <Button onClick={() => setActiveModel(model.url)} variant="light" size="xs">Activar para AR</Button>
-                                )}
-                            </Group>
+                            <SimpleGrid cols={3} spacing="md" align="center">
+                                {/* Columna 1: Vista Previa 3D */}
+                                <Center>
+                                    <ModelPreview modelUrl={model.url} />
+                                </Center>
+                                
+                                {/* Columna 2: Nombre del Modelo */}
+                                <Text size="sm" truncate>{model.name.replace(`modelo_producto_${productId}_`, '').replace('.glb', '')}</Text>
+
+                                {/* Columna 3: Estado y Botón de Acción */}
+                                <Box>
+                                    {model.isActive ? (
+                                        <Badge color="green" variant="light" leftSection={<IconCircleCheck size={14}/>}>Activo en AR</Badge>
+                                    ) : (
+                                        <Button onClick={() => setActiveModel(model.url)} variant="light" size="xs">Activar para AR</Button>
+                                    )}
+                                </Box>
+                            </SimpleGrid>
                         </Paper>
                     )) : <Text c="dimmed">Aún no has generado modelos 3D para este producto.</Text>}
                 </Stack>
             </Modal>
         </Paper>
     );
+}
+function ModelPreview({ modelUrl }) {
+    const canvasRef = useRef();
+
+    useEffect(() => {
+        if (!canvasRef.current || !modelUrl) return;
+
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xeeeeee);
+        const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
+        camera.position.z = 1.5;
+
+        const renderer = new THREE.WebGLRenderer({ canvas: canvasRef.current, antialias: true });
+        renderer.setSize(100, 100);
+
+        scene.add(new THREE.AmbientLight(0xffffff, 1.5));
+        scene.add(new THREE.DirectionalLight(0xffffff, 2));
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableZoom = false; // Desactivamos el zoom para que sea más simple
+
+        const loader = new GLTFLoader();
+        loader.load(modelUrl, (gltf) => {
+            scene.add(gltf.scene);
+        });
+
+        const animate = () => {
+            if (!renderer.domElement.isConnected) return;
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        };
+        animate();
+        
+        return () => renderer.dispose();
+    }, [modelUrl]);
+
+    return <canvas ref={canvasRef} style={{ width: 100, height: 100, borderRadius: '4px' }} />;
 }
 
 export default ProductSpritePage;

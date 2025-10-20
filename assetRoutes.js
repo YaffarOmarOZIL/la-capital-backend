@@ -154,25 +154,26 @@ router.get('/products/:productId/assets/models', isAdmin, async (req, res) => {
     const { productId } = req.params;
 
     try {
-        // Usamos la API de Storage de Supabase para listar archivos en el bucket
-        const { data, error } = await supabase.storage
+        // --- CORRECCIÓN CLAVE ---
+        // 1. Pedimos la lista de TODOS los archivos del bucket, SIN la opción 'search'.
+        const { data: allFiles, error } = await supabase.storage
             .from('modelos-3d')
-            .list('', { // Buscamos en la raíz del bucket
-                search: `producto_${productId}` // Con un patrón que incluya el ID del producto
-            });
+            .list(''); // Sin opciones, para traer todo.
 
         if (error) throw error;
         
-        // Obtenemos la URL pública del modelo actualmente activo en la DB para marcarlo
-        const { data: activeAsset, error: activeAssetError } = await supabase
-            .from('ActivosDigitales')
-            .select('url_modelo_3d')
-            .eq('id_producto', productId)
-            .single();
+        // 2. Obtenemos el modelo activo para poder marcarlo después.
+        const { data: activeAsset } = await supabase
+            .from('ActivosDigitales').select('url_modelo_3d').eq('id_producto', productId).single();
 
-        // Construimos la respuesta con URLs públicas y el estado activo
-        const models = data
-            .filter(file => file.name.endsWith('.glb')) // Nos aseguramos de que solo sean archivos GLB
+        // 3. Filtramos la lista COMPLETA nosotros mismos con JavaScript.
+        const models = allFiles
+            .filter(file => 
+                // Condición 1: El nombre debe incluir '_<ID del producto>_'
+                file.name.includes(`_${productId}_`) &&
+                // Condición 2: El nombre debe terminar en '.glb'
+                file.name.endsWith('.glb')
+            )
             .map(file => {
                 const publicUrl = supabase.storage.from('modelos-3d').getPublicUrl(file.name).data.publicUrl;
                 return {
@@ -188,6 +189,7 @@ router.get('/products/:productId/assets/models', isAdmin, async (req, res) => {
         res.status(500).json({ message: "Error en el servidor al listar modelos." });
     }
 });
+
 
 
 // 2. ESTABLECER un modelo 3D como el ACTIVO para la experiencia AR

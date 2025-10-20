@@ -129,4 +129,29 @@ router.get('/:id', isAuthenticated, async (req, res) => {
     }
 });
 
+router.get('/birthdays', isAuthenticated, async (req, res) => {
+    try {
+        // Obtenemos el "día del año" de hoy y de aquí a 7 días.
+        // Por ejemplo, 1 de Enero es 1, 31 de Diciembre es 365.
+        const hoy = new Date();
+        const fin = new Date();
+        fin.setDate(hoy.getDate() + 7);
+
+        // Usamos una consulta SQL directa (raw) porque es la forma más eficiente
+        // de comparar cumpleaños ignorando el año.
+        const { data, error } = await supabase.rpc('get_upcoming_birthdays', {
+            start_day: hoy.getDate(),
+            start_month: hoy.getMonth() + 1, // Los meses en JS son 0-11, en PG son 1-12
+            end_day: fin.getDate(),
+            end_month: fin.getMonth() + 1
+        });
+
+        if (error) throw error;
+        res.json(data);
+    } catch (error) {
+        console.error("Error al obtener cumpleaños:", error);
+        res.status(500).json({ message: "Error al obtener la lista de cumpleaños." });
+    }
+});
+
 module.exports = router;

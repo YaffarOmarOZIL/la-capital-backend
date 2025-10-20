@@ -1,3 +1,5 @@
+// --- ARCHIVO: frontend/src/pages/ARViewerPage.jsx (VERSIÓN FINAL Y ROBUSTA) ---
+
 import { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
@@ -11,47 +13,34 @@ function ARViewerPage() {
     const [error, setError] = useState('');
     const sceneRef = useRef(null);
 
-    // 1. Obtener la URL del modelo 3D (esto no cambia, estaba bien)
+    // 1. Cargar la información del producto (sin cambios)
     useEffect(() => {
         const fetchProduct = async () => {
             try {
                 const apiUrl = `${import.meta.env.VITE_API_BASE_URL}/api/products/public/${productId}`;
                 const { data } = await axios.get(apiUrl);
-                
                 const modelUrl = data.ActivosDigitales?.url_modelo_3d;
-                if (!modelUrl) {
-                    throw new Error('Este producto no tiene un modelo 3D asignado.');
-                }
-                
+                if (!modelUrl) throw new Error('Este producto no tiene un modelo 3D activo para la AR.');
                 setProductData({ modelUrl, name: data.nombre || 'Producto' });
-            } catch (err) {
-                setError(err.message || 'No se pudo cargar la información del producto.');
-            } finally {
-                setLoading(false);
-            }
+            } catch (err) { setError(err.message || 'No se pudo cargar la información del producto.');
+            } finally { setLoading(false); }
         };
         fetchProduct();
     }, [productId]);
     
-    // 2. Controlar el ciclo de vida de la escena de MindAR con React
+    // 2. CORRECCIÓN: Dejar que MindAR se inicie solo y solo nos preocupamos de apagarlo
     useEffect(() => {
-        // Solo ejecutar si tenemos los datos del producto y la escena está lista
-        if (!productData || !sceneRef.current) return;
-    
         const sceneEl = sceneRef.current;
-        // Obtenemos el sistema de MindAR que A-Frame ha inicializado
-        const mindarSystem = sceneEl.systems['mindar-image-system'];
-    
-        // Iniciamos el motor de AR. Esto pedirá permiso de cámara.
-        mindarSystem.start();
-    
-        // El 'return' en un useEffect es una función de limpieza.
-        // Se ejecuta cuando el componente se desmonta (ej: al navegar a otra página)
+        
+        // La función de limpieza se ejecuta solo cuando el componente se va a desmontar
         return () => {
-            // Detenemos el motor de AR para liberar la cámara y los recursos.
-            mindarSystem.stop();
+            // Si el usuario navega a otra página, nos aseguramos de que el sistema de AR se detenga
+            // para liberar la cámara.
+            if (sceneEl && sceneEl.systems['mindar-image-system']?.controller) {
+                sceneEl.systems['mindar-image-system'].stop();
+            }
         };
-    }, [productData]); // Este efecto se ejecuta cuando 'productData' se carga.
+    }, []); // El array vacío asegura que la limpieza se configure una sola vez.
 
     if (loading) return <Center h="100vh"><Loader /></Center>;
 
@@ -68,6 +57,7 @@ function ARViewerPage() {
 
     return (
         <Box style={{ width: '100vw', height: '100vh', position: 'relative', overflow: 'hidden' }}>
+            {/* ... La UI no cambia ... */}
             <Paper withBorder p="xs" shadow="lg" style={{ position: 'absolute', top: '10px', left: '10px', right: '10px', zIndex: 1000, backgroundColor: 'rgba(255, 255, 255, 0.95)' }}>
                 <Stack gap="xs">
                     <Button component={Link} to="/experiencia-cliente" variant="subtle" size="xs" leftSection={<IconArrowLeft size={14}/>}>Volver</Button>
@@ -76,17 +66,13 @@ function ARViewerPage() {
                 </Stack>
             </Paper>
 
-            {/*
-              ESTA ES LA NUEVA ESCENA DE MINDAR
-              - 'mindar-image': Es el componente principal. Le decimos dónde está nuestro marcador compilado.
-              - Desactivamos la UI por defecto de MindAR para usar la nuestra ('uiLoading: no', etc.)
-              - 'a-entity mindar-image-target': Este es el ancla. Su contenido solo es visible cuando el marcador 'targetIndex: 0' (el primero del archivo .mind) es detectado.
-            */}
             <a-scene
                 ref={sceneRef}
-                mindar-image={`imageTargetSrc: /targets.mind; autoStart: false; uiLoading: no; uiError: no; uiScanning: no;`}
+                // LA CORRECCIÓN CLAVE: autoStart ahora es 'true'.
+                // MindAR se encargará de pedir la cámara cuando esté listo.
+                mindar-image="imageTargetSrc: /targets.mind; autoStart: true; uiLoading: no; uiError: no; uiScanning: no;"
                 color-space="sRGB"
-                renderer="colorManagement: true, physicallyCorrectLights"
+                renderer="colorManagement: true, physicallyCorrectLights: true"
                 vr-mode-ui="enabled: false"
                 device-orientation-permission-ui="enabled: false"
                 style={{ width: '100%', height: '100%' }}
@@ -96,15 +82,16 @@ function ARViewerPage() {
                 <a-entity mindar-image-target="targetIndex: 0">
                     <a-gltf-model
                         src={productData.modelUrl}
-                        position="0 0.1 0"
+                        position="0 0 0"
                         rotation="0 0 0"
-                        scale="0.8 0.8 0.8" 
+                        scale="0.5 0.5 0.5"
+                        animation-mixer
                     />
                 </a-entity>
             </a-scene>
 
-             <Paper withBorder p="xs" style={{ position: 'absolute', bottom: '10px', left: '10px', right: '10px', zIndex: 1000, backgroundColor: 'rgba(255, 255, 255, 0.95)'}}>
-                <Text size="xs" c="dimmed" ta="center">💡 Si no ves el producto, asegúrate de tener buena luz y el marcador no esté arrugado.</Text>
+            <Paper withBorder p="xs" style={{ position: 'absolute', bottom: '10px', left: '10px', right: '10px', zIndex: 1000, backgroundColor: 'rgba(255, 255, 255, 0.95)'}}>
+                <Text size="xs" c="dimmed" ta="center">💡 Si no ves el producto, asegúrate de tener buena luz.</Text>
                 <Button component="a" href="https://mphktccqzeahjrsmdzsj.supabase.co/storage/v1/object/public/qrcodes/hiro.png" target="_blank" download="marcador-hiro.png" size="xs" variant="light" fullWidth mt="xs">Descargar Marcador</Button>
             </Paper>
         </Box>
