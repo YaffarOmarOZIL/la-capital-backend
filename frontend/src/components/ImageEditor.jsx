@@ -2,6 +2,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Group, Button, Stack, Text, Slider, Paper } from '@mantine/core';
 import { IconBrush, IconEraser } from '@tabler/icons-react';
+import { removeBackground } from '@imgly/background-removal';
 
 function ImageEditor({ file, onProcessComplete, onClear }) {
     const canvasRef = useRef(null);

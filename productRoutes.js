@@ -39,21 +39,17 @@ router.get('/public/with-ar', async (req, res) => {
 router.get('/public/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        // Si por error 'with-ar' llega aquí, no es un número, así que fallará
-        if (isNaN(id)) {
-            return res.status(404).json({ message: 'ID de producto inválido.' });
-        }
+        if (isNaN(id)) return res.status(400).json({ message: 'ID de producto inválido.' });
+
         const { data, error } = await supabase
             .from('Productos')
-            .select('*, ActivosDigitales ( urls_imagenes, url_marker_patt )')
+            .select('nombre, ActivosDigitales!inner(url_modelo_3d)') // <-- Pedimos el nombre del producto y el modelo
             .eq('id', id)
             .single();
 
-        if (error || !data) throw new Error('Producto no encontrado.');
+        if (error || !data) return res.status(404).json({ message: "Producto o su modelo 3D no encontrado." });
         res.json(data);
-    } catch (error) {
-        res.status(404).json({ message: "Producto no encontrado." });
-    }
+    } catch (error) { res.status(500).json({ message: "Error interno del servidor." }); }
 });
 
 // --- 1. LEER TODOS los productos ---
