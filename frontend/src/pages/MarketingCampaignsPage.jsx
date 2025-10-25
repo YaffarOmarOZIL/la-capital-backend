@@ -1,173 +1,223 @@
-// --- ARCHIVO: frontend/src/pages/MarketingCampaignsPage.jsx ---
+// --- ARCHIVO COMPLETO: frontend/src/pages/MarketingCampaignsPage.jsx ---
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { Container, Title, Text, Tabs, Card, Group, Avatar, Badge, Button, Table, Checkbox, Textarea, SimpleGrid, Modal, Paper } from '@mantine/core';
-import { IconCake, IconSend, IconDiscount2, IconUsers } from '@tabler/icons-react';
+import { Container, Title, Text, Tabs, Card, Group, Avatar, Button, Textarea, SimpleGrid, Modal, Paper, FileButton, Image, Alert } from '@mantine/core';
+import { IconCake, IconSend, IconDiscount2, IconInfoCircle, IconPhotoUp } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
+import { useEditor } from '@tiptap/react';
+import { RichTextEditor, Link } from '@mantine/tiptap';
+import StarterKit from '@tiptap/starter-kit';
 
-// Componente para la lista de cumpleaños
-function BirthdayList() {
-    const [birthdayClients, setBirthdayClients] = useState([]);
-    const [loading, setLoading] = useState(true);
+// --- Función Helper para copiar imagen al portapapeles ---
+async function copyImageToClipboard(imageUrl) {
+    if (!imageUrl) return false;
+    try {
+        const response = await fetch(imageUrl);
+        const blob = await response.blob();
+        await navigator.clipboard.write([
+            new ClipboardItem({ [blob.type]: blob })
+        ]);
+        return true;
+    } catch (error) {
+        console.error("No se pudo copiar la imagen al portapapeles:", error);
+        return false;
+    }
+}
 
-    useEffect(() => {
-        const fetchBirthdays = async () => {
-            try {
-                const token = localStorage.getItem('authToken');
-                const { data } = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/clients/birthdays`, {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-                setBirthdayClients(data);
-            } catch (error) {
-                notifications.show({ title: 'Error', message: 'No se pudo cargar la lista de cumpleaños.', color: 'red' });
-            }
-            setLoading(false);
-        };
-        fetchBirthdays();
-    }, []);
-
-    const handleSendMessage = (cliente) => {
-        const nombre = cliente.nombres.split(' ')[0]; // Usamos solo el primer nombre
-        const message = `¡Feliz cumpleaños ${nombre}! 🥳 De parte de La Capital, te regalamos un 20% de descuento en tu próxima visita. ¡Te esperamos para celebrar!`;
-        const encodedMessage = encodeURIComponent(message);
-        // Asumimos código de país de Bolivia 591
-        window.open(`https://wa.me/591${cliente.numero_telefono}?text=${encodedMessage}`, '_blank');
-    };
-
-    if (loading) return <Text>Cargando cumpleaños...</Text>;
+// --- Componente Reutilizable del Editor ---
+function CampaignEditor({ campaignKey, settings, onSave, onImageUpload }) {
+    const editor = useEditor({
+        extensions: [StarterKit, Link],
+        content: settings?.message || '',
+    });
 
     return (
+        <Stack>
+            <Text fw={500}>1. Diseña tu Campaña</Text>
+            <RichTextEditor editor={editor}>
+                <RichTextEditor.Toolbar sticky stickyOffset={60}>
+                    <RichTextEditor.ControlsGroup>
+                        <RichTextEditor.Bold /> <RichTextEditor.Italic /> <RichTextEditor.Strikethrough />
+                    </RichTextEditor.ControlsGroup>
+                </RichTextEditor.Toolbar>
+                <RichTextEditor.Content />
+            </RichTextEditor>
+            <Group justify="flex-end">
+                <Button onClick={() => onSave(campaignKey, editor.getHTML())}>Guardar Mensaje</Button>
+            </Group>
+
+            <FileButton onChange={(file) => onImageUpload(campaignKey, file)} accept="image/png,image/jpeg">
+                {(props) => <Button {...props} variant="default" leftSection={<IconPhotoUp size={16}/>}>Adjuntar Imagen</Button>}
+            </FileButton>
+
+            {settings?.imageUrl && (
+                <Paper withBorder p="sm" mt="xs">
+                    <Text size="xs" c="dimmed">Imagen de la campaña:</Text>
+                    <Image src={settings.imageUrl} maw={200} mx="auto" radius="md" />
+                </Paper>
+            )}
+        </Stack>
+    );
+}
+
+// --- Componente para las campañas (unificado) ---
+function CampaignSender({ clients, campaignKey, settings }) {
+    const [sentIds, setSentIds] = useState(new Set());
+    const [cooldown, setCooldown] = useState(0);
+
+    const handleSendMessage = async (cliente) => {
+        if (cooldown > 0) {
+            notifications.show({ title: 'Pausa Anti-Spam', message: `Por favor, espera ${cooldown} segundos.`, color: 'orange' });
+            return;
+        }
+
+        try {
+            const token = localStorage.getItem('authToken');
+            await axios.post(`${import.meta.env.VITE_API_BASE_URL}/api/campaigns/rate-limit/check`, {}, { headers: { Authorization: `Bearer ${token}` } });
+            
+            const isImageCopied = await copyImageToClipboard(settings?.imageUrl);
+
+            const personalizedHtml = (settings?.message || "")
+                .replace(/\[Nombre\]/g, cliente.nombres.split(' ')[0])
+                .replace(/\[Apellido\]/g, cliente.apellidos.split(' ')[0]);
+            
+            // Convertir HTML a texto plano para WhatsApp
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = personalizedHtml.replace(/<p><\/p>/g, '\n').replace(/<\/p><p>/g, '\n').replace(/<strong>/g, '*').replace(/<\/strong>/g, '*').replace(/<em>/g, '_').replace(/<\/em>/g, '_').replace(/<s>/g, '~').replace(/<\/s>/g, '~');
+            const plainText = tempDiv.textContent || "";
+
+            const encodedMessage = encodeURIComponent(plainText);
+            
+            window.open(`https://wa.me/591${cliente.numero_telefono}?text=${encodedMessage}`, '_blank');
+            setSentIds(prev => new Set(prev).add(cliente.id));
+
+            if (isImageCopied) {
+                notifications.show({ title: '¡Acción requerida!', message: 'La imagen ha sido copiada. Pégala (Ctrl+V) en el chat de WhatsApp y envía.', autoClose: 10000 });
+            }
+
+        } catch (error) {
+            if (error.response?.status === 429) {
+                notifications.show({ title: 'Pausa Anti-Spam', message: error.response.data.message, color: 'orange' });
+                setCooldown(error.response.data.cooldown);
+                const timer = setInterval(() => setCooldown(c => c > 0 ? c - 1 : 0), 1000);
+                setTimeout(() => clearInterval(timer), error.response.data.cooldown * 1000);
+            } else {
+                notifications.show({ title: 'Error', message: 'No se pudo verificar el límite de envío.', color: 'red' });
+            }
+        }
+    };
+    
+    return (
         <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} mt="md">
-            {birthdayClients.length > 0 ? birthdayClients.map(client => (
-                <Card key={client.id} shadow="sm" p="lg" radius="md" withBorder>
+            {clients.length > 0 ? clients.map(client => {
+                const isSent = sentIds.has(client.id);
+                return (
+                <Card key={client.id} shadow="sm" p="lg" radius="md" withBorder style={{ opacity: isSent ? 0.6 : 1 }}>
                     <Group justify="space-between">
-                        <Group>
+                         <Group>
                             <Avatar color="cyan" radius="xl">{client.nombres[0]}{client.apellidos[0]}</Avatar>
                             <div>
                                 <Text fw={500}>{client.nombres} {client.apellidos}</Text>
-                                <Text size="xs" c="dimmed">{new Date(client.fecha_nacimiento).toLocaleDateString('es-ES', { day: 'numeric', month: 'long' })}</Text>
+                                <Text size="xs" c="dimmed">{campaignKey === 'birthday_campaign' ? new Date(client.fecha_nacimiento).toLocaleDateString('es-ES', { day: 'numeric', month: 'long' }) : client.numero_telefono}</Text>
                             </div>
                         </Group>
-                        <Button onClick={() => handleSendMessage(client)} variant="light" color="green" size="xs" leftSection={<IconCake size={14}/>}>
-                            Felicitar
+                        <Button onClick={() => handleSendMessage(client)} disabled={cooldown > 0} variant="light" color={isSent ? "gray" : "blue"} size="xs" leftSection={<IconSend size={14}/>}>
+                            {isSent ? "Enviado" : "Enviar"}
                         </Button>
                     </Group>
                 </Card>
-            )) : <Text>No hay cumpleaños en los próximos 7 días.</Text>}
+            )}) : <Text>No hay clientes para esta campaña.</Text>}
         </SimpleGrid>
     );
 }
 
-// Componente para la campaña masiva
-function BulkCampaign() {
-    const [clients, setClients] = useState([]);
-    const [selected, setSelected] = useState([]);
-    const [message, setMessage] = useState('¡Hola [Nombre]! Tenemos una promoción especial para ti en La Capital: ');
-    const [modalOpened, setModalOpened] = useState(false);
-    
-    useEffect(() => {
-        const fetchClients = async () => {
-            const token = localStorage.getItem('authToken');
-            const { data } = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/clients`, { headers: { Authorization: `Bearer ${token}` } });
-            setClients(data);
-        };
-        fetchClients();
-    }, []);
-    
-    const selectedClientsData = clients.filter(c => selected.includes(c.id));
-    
-    const handleSendMessage = (cliente) => {
-        const personalizedMessage = message
-            .replace(/\[Nombre\]/g, cliente.nombres.split(' ')[0])
-            .replace(/\[Apellido\]/g, cliente.apellidos.split(' ')[0]);
-        const encodedMessage = encodeURIComponent(personalizedMessage);
-        window.open(`https://wa.me/591${cliente.numero_telefono}?text=${encodedMessage}`, '_blank');
-    };
-
-    const rows = clients.map(client => (
-        <Table.Tr key={client.id}>
-            <Table.Td>
-                <Checkbox checked={selected.includes(client.id)} onChange={(e) => 
-                    setSelected(e.currentTarget.checked ? [...selected, client.id] : selected.filter(id => id !== client.id))
-                }/>
-            </Table.Td>
-            <Table.Td>{client.nombres}</Table.Td>
-            <Table.Td>{client.apellidos}</Table.Td>
-            <Table.Td>{client.numero_telefono}</Table.Td>
-        </Table.Tr>
-    ));
-
-    return (
-        <>
-            <Modal opened={modalOpened} onClose={() => setModalOpened(false)} title={`Enviar a ${selected.length} clientes`} size="lg">
-                <Text c="dimmed" mb="md">Haz clic en "Enviar" para cada cliente para abrir WhatsApp con el mensaje pre-cargado.</Text>
-                {selectedClientsData.map(c => (
-                     <Paper withBorder p="xs" radius="md" mb="xs" key={c.id}>
-                         <Group justify="space-between">
-                            <Text>{c.nombres} {c.apellidos}</Text>
-                            <Button size="xs" variant="outline" onClick={() => handleSendMessage(c)} leftSection={<IconSend size={14}/>}>Enviar</Button>
-                        </Group>
-                    </Paper>
-                ))}
-            </Modal>
-
-            <SimpleGrid cols={{ base: 1, md: 2 }} mt="md" spacing="xl">
-                <div>
-                    <Text fw={500}>1. Escribe tu mensaje promocional</Text>
-                    <Textarea
-                        mt="xs"
-                        placeholder="Escribe tu oferta aquí..."
-                        value={message}
-                        onChange={(e) => setMessage(e.currentTarget.value)}
-                        minRows={6}
-                    />
-                    <Text size="xs" mt="xs">Usa los botones para añadir personalización:</Text>
-                    <Group mt="xs">
-                        <Button size="xs" variant="light" onClick={() => setMessage(m => m + '[Nombre]')}>[Nombre]</Button>
-                        <Button size="xs" variant="light" onClick={() => setMessage(m => m + '[Apellido]')}>[Apellido]</Button>
-                    </Group>
-                </div>
-                <div>
-                    <Text fw={500}>2. Selecciona los clientes</Text>
-                     <Paper withBorder radius="md" style={{ maxHeight: 300, overflowY: 'auto' }} mt="xs">
-                        <Table stickyHeader>
-                            <Table.Thead>
-                                <Table.Tr><Table.Th><Checkbox onChange={e => setSelected(e.currentTarget.checked ? clients.map(c => c.id) : [])} /></Table.Th><Table.Th>Nombres</Table.Th><Table.Th>Apellidos</Table.Th><Table.Th>Teléfono</Table.Th></Table.Tr>
-                            </Table.Thead>
-                            <Table.Tbody>{rows}</Table.Tbody>
-                        </Table>
-                    </Paper>
-                    <Button onClick={() => setModalOpened(true)} disabled={selected.length === 0} fullWidth mt="md" leftSection={<IconSend size={16}/>}>
-                        Preparar envío a {selected.length} cliente(s)
-                    </Button>
-                </div>
-            </SimpleGrid>
-        </>
-    );
-}
 
 function MarketingCampaignsPage() {
+    const [settings, setSettings] = useState({});
+    const [birthdayClients, setBirthdayClients] = useState([]);
+    const [allClients, setAllClients] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    const fetchSettingsAndClients = async () => {
+        setLoading(true);
+        try {
+            const token = localStorage.getItem('authToken');
+            const [settingsRes, birthdaysRes, allClientsRes] = await Promise.all([
+                axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/campaigns/settings`, { headers: { Authorization: `Bearer ${token}` } }),
+                axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/clients/birthdays`, { headers: { Authorization: `Bearer ${token}` } }),
+                axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/clients`, { headers: { Authorization: `Bearer ${token}` } })
+            ]);
+            setSettings(settingsRes.data);
+            setBirthdayClients(birthdaysRes.data);
+            setAllClients(allClientsRes.data);
+        } catch (error) {
+            notifications.show({ title: 'Error', message: 'No se pudieron cargar los datos iniciales.', color: 'red' });
+        }
+        setLoading(false);
+    };
+
+    useEffect(() => {
+        fetchSettingsAndClients();
+    }, []);
+
+    const handleSaveSetting = async (key, htmlContent) => {
+        const currentSetting = settings[key];
+        const newValue = { ...currentSetting, message: htmlContent };
+        try {
+            const token = localStorage.getItem('authToken');
+            await axios.put(`${import.meta.env.VITE_API_BASE_URL}/api/campaigns/settings`, { key, value: newValue }, { headers: { Authorization: `Bearer ${token}` } });
+            notifications.show({ title: '¡Guardado!', message: 'El mensaje de la campaña ha sido actualizado.', color: 'green' });
+            fetchSettingsAndClients();
+        } catch (error) {
+             notifications.show({ title: 'Error', message: 'No se pudo guardar el mensaje.', color: 'red' });
+        }
+    };
+    
+    const handleImageUpload = async (campaignKey, file) => {
+        const formData = new FormData();
+        formData.append('campaignImage', file);
+        formData.append('campaignKey', campaignKey);
+        try {
+            const token = localStorage.getItem('authToken');
+            await axios.post(`${import.meta.env.VITE_API_BASE_URL}/api/campaigns/settings/image`, formData, { headers: { Authorization: `Bearer ${token}` } });
+            notifications.show({ title: '¡Subida!', message: 'La imagen de la campaña ha sido actualizada.', color: 'green' });
+            fetchSettingsAndClients();
+        } catch (error) {
+            notifications.show({ title: 'Error', message: 'No se pudo subir la imagen.', color: 'red' });
+        }
+    };
+
+    if (loading) return <Loader />;
+
     return (
         <Container my="xl">
             <Title order={2}>Campañas de Marketing por WhatsApp</Title>
-            <Text c="dimmed">Gestiona la comunicación directa con tus clientes para cumpleaños y promociones especiales.</Text>
-
             <Tabs defaultValue="birthdays" mt="xl">
                 <Tabs.List>
-                    <Tabs.Tab value="birthdays" leftSection={<IconCake size={16} />}>
-                        Campaña de Cumpleaños
-                    </Tabs.Tab>
-                    <Tabs.Tab value="promo" leftSection={<IconDiscount2 size={16} />}>
-                        Campaña Promocional
-                    </Tabs.Tab>
+                    <Tabs.Tab value="birthdays" leftSection={<IconCake />}>Campaña de Cumpleaños</Tabs.Tab>
+                    <Tabs.Tab value="promo" leftSection={<IconDiscount2 />}>Campaña Promocional</Tabs.Tab>
                 </Tabs.List>
 
                 <Tabs.Panel value="birthdays" pt="md">
-                    <BirthdayList />
+                    <SimpleGrid cols={{base: 1, lg: 2}} spacing="xl">
+                       <CampaignEditor campaignKey="birthday_campaign" settings={settings.birthday_campaign} onSave={handleSaveSetting} onImageUpload={handleImageUpload} />
+                       <div>
+                            <Text fw={500}>2. Envía Felicitaciones</Text>
+                            <Alert icon={<IconInfoCircle/>} title="Clientes con cumpleaños próximo (7 días)" color="blue" mt="xs"/>
+                            <CampaignSender clients={birthdayClients} campaignKey="birthday_campaign" settings={settings.birthday_campaign}/>
+                       </div>
+                    </SimpleGrid>
                 </Tabs.Panel>
+                
                 <Tabs.Panel value="promo" pt="md">
-                    <BulkCampaign />
+                    <SimpleGrid cols={{base: 1, lg: 2}} spacing="xl">
+                        <CampaignEditor campaignKey="promo_campaign" settings={settings.promo_campaign} onSave={handleSaveSetting} onImageUpload={handleImageUpload} />
+                        <div>
+                             <Text fw={500}>2. Envía a todos los clientes</Text>
+                             <CampaignSender clients={allClients} campaignKey="promo_campaign" settings={settings.promo_campaign}/>
+                        </div>
+                    </SimpleGrid>
                 </Tabs.Panel>
             </Tabs>
         </Container>

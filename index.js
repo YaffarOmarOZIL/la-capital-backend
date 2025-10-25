@@ -16,6 +16,7 @@ const productRoutes = require('./productRoutes');
 const clientRoutes = require('./clientRoutes');
 const assetRoutes = require('./assetRoutes');
 const clientAuthRoutes = require('./clientAuthRoutes');
+const campaignRoutes = require('./campaignRoutes');
 
 
 app.get('/', (req, res) => {
@@ -30,6 +31,7 @@ app.use('/api/products', productRoutes);
 app.use('/api/clients', clientRoutes);
 app.use('/api', assetRoutes);
 app.use('/api/client-auth', clientAuthRoutes);
+app.use('/api/campaigns', campaignRoutes);
 
 
 app.listen(PORT, () => {
