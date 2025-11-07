@@ -168,10 +168,11 @@ function AdminLayout() {
                             onClick={close} 
                         />
                         {/* --- BOTONES PARA EL FUTURO (deshabilitados) --- */}
-                        <MantineNavLink
-                            label="Análisis de Clientela"
-                            icon={<IconChartBar size={16} />}
-                            disabled
+                        <MenuLink 
+                            to="/admin/analysis"
+                            label="Análisis de Clientela" 
+                            icon={<IconChartBar size={16} />} 
+                            onClick={close} 
                         />
                         <MenuLink 
                             to="/admin/campaigns"

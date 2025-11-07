@@ -24,6 +24,7 @@ import ClientLoginPage from './pages/ClientLoginPage';
 import ClientPrivateRoute from './components/ClientPrivateRoute';
 import ClientExperiencePage from './pages/ClientExperiencePage';
 import MarketingCampaignsPage from './pages/MarketingCampaignsPage';
+import ClientAnalysisPage from './pages/ClientAnalysisPage';
 
 function App() {
   return (
@@ -68,6 +69,7 @@ function App() {
           <Route path="clients/edit/:clientId" element={<ClientFormPage />} />
           <Route path="products/sprites/:id" element={<ProductSpritePage />} /> 
           <Route path="campaigns" element={<MarketingCampaignsPage />} />
+          <Route path="analysis" element={<ClientAnalysisPage />} />
         </Route>
         
       </Routes>

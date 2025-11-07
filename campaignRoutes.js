@@ -9,6 +9,94 @@ const multer = require('multer');
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
+// --- OBTENER CLIENTES QUE YA RECIBIERON MENSAJE HOY ---
+router.get('/sent-today', isAuthenticated, async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from('CampaignSettings')
+            .select('value')
+            .eq('key', 'sent_today')
+            .single();
+
+        if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+            throw error;
+        }
+
+        // Si no existe el registro o está vacío
+        if (!data || !data.value) {
+            return res.json({ clientIds: [], date: new Date().toISOString().split('T')[0] });
+        }
+
+        const sentData = data.value;
+        const today = new Date().toISOString().split('T')[0];
+
+        // Si la fecha es de hoy, devolver los IDs
+        if (sentData.date === today) {
+            return res.json({ clientIds: sentData.clientIds || [], date: today });
+        }
+
+        // Si es de otro día, limpiar y devolver vacío
+        await supabase
+            .from('CampaignSettings')
+            .upsert({ key: 'sent_today', value: { date: today, clientIds: [] } });
+
+        res.json({ clientIds: [], date: today });
+    } catch (error) {
+        console.error('Error al obtener sent-today:', error);
+        res.status(500).json({ message: 'Error al obtener los datos de envíos.' });
+    }
+});
+
+// --- MARCAR CLIENTE COMO ENVIADO HOY ---
+router.post('/mark-sent', isAuthenticated, async (req, res) => {
+    const { clientId } = req.body;
+    const today = new Date().toISOString().split('T')[0];
+
+    try {
+        // Obtener el registro actual
+        const { data: current, error: fetchError } = await supabase
+            .from('CampaignSettings')
+            .select('value')
+            .eq('key', 'sent_today')
+            .single();
+
+        let clientIds = [];
+
+        if (!fetchError && current && current.value) {
+            const sentData = current.value;
+            
+            // Si es del mismo día, agregar el ID
+            if (sentData.date === today) {
+                clientIds = sentData.clientIds || [];
+                if (!clientIds.includes(clientId)) {
+                    clientIds.push(clientId);
+                }
+            } else {
+                // Si es de otro día, reiniciar con este ID
+                clientIds = [clientId];
+            }
+        } else {
+            // Si no existe, crear nuevo
+            clientIds = [clientId];
+        }
+
+        // Actualizar en la base de datos
+        const { error: upsertError } = await supabase
+            .from('CampaignSettings')
+            .upsert({ 
+                key: 'sent_today', 
+                value: { date: today, clientIds } 
+            });
+
+        if (upsertError) throw upsertError;
+
+        res.json({ success: true, clientIds, date: today });
+    } catch (error) {
+        console.error('Error al marcar como enviado:', error);
+        res.status(500).json({ message: 'Error al actualizar el registro.' });
+    }
+});
+
 // OBTENER TODOS los ajustes de campaña
 router.get('/settings', isAuthenticated, async (req, res) => {
     try {
@@ -86,5 +174,7 @@ router.post('/rate-limit/check', isAuthenticated, async (req, res) => {
         res.status(200).json({ message: 'OK' });
     } catch (error) { res.status(500).json({ message: 'Error al verificar el límite.' }); }
 });
+
+
 
 module.exports = router;

@@ -6,7 +6,9 @@ const PORT = process.env.PORT || 3001;
 
 // ----- Middlewares -----
 app.use(cors()); 
-app.use(express.json());
+app.use(express.json({ charset: 'utf-8' })); 
+app.use(express.urlencoded({ extended: true, charset: 'utf-8' }));
+//app.use(express.json());
 
 // ----- Rutas -----
 const authRoutes = require('./authRoutes');
@@ -17,6 +19,7 @@ const clientRoutes = require('./clientRoutes');
 const assetRoutes = require('./assetRoutes');
 const clientAuthRoutes = require('./clientAuthRoutes');
 const campaignRoutes = require('./campaignRoutes');
+const analyticsRoutes = require('./analyticsRoutes');
 
 
 app.get('/', (req, res) => {
@@ -32,6 +35,7 @@ app.use('/api/clients', clientRoutes);
 app.use('/api', assetRoutes);
 app.use('/api/client-auth', clientAuthRoutes);
 app.use('/api/campaigns', campaignRoutes);
+app.use('/api/analytics', analyticsRoutes);
 
 
 app.listen(PORT, () => {

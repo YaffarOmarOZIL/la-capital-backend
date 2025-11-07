@@ -4,11 +4,13 @@ import App from './App.jsx';
 import { Notifications } from '@mantine/notifications'; 
 import '@mantine/notifications/styles.css'; 
 import '@mantine/dates/styles.css';
+import '@mantine/tiptap/styles.css';
 
 // ¡Importante! La importación principal de los estilos de Mantine
 import '@mantine/core/styles.css';
 
 import { MantineProvider, createTheme } from '@mantine/core';
+import { ModalsProvider } from '@mantine/modals';
 
 // Definimos nuestro tema personalizado para "La Capital"
 const theme = createTheme({
@@ -27,8 +29,10 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     {/* El MantineProvider envuelve toda la aplicación */}
     <MantineProvider theme={theme} defaultColorScheme="auto">
+      <ModalsProvider>
         <Notifications position="top-right" />
-      <App />
+        <App />
+      </ModalsProvider>
     </MantineProvider>
   </React.StrictMode>
 );

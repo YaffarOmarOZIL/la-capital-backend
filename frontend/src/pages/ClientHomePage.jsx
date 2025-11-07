@@ -18,11 +18,17 @@ function Header() {
     const { colorScheme, setColorScheme } = useMantineColorScheme();
     const [opened, { open, close }] = useDisclosure(false);
 
+    const headerBg = colorScheme === 'dark' 
+        ? 'rgba(0, 0, 0, 0.7)' 
+        : 'rgba(30, 30, 30, 0.8)'; // Oscuro también en modo claro para la foto
+
+    const textColor = 'white';
+
     return (
       <>
-        <header className={classes.header}>
+        <header className={classes.header} style={{ backgroundColor: headerBg, backdropFilter: 'blur(10px)' }}>
             <Container size="lg" className={classes.headerInner}>
-                <Text fw={700}>La Capital</Text>
+                <Text fw={700} c={textColor}>La Capital</Text>
                 {/* ----- GRUPO DE BOTONES PARA ESCRITORIO ----- */}
                     {/* 'visibleFrom="sm"' significa que solo se ve en pantallas 'small' y más grandes */}
                     <Group visibleFrom="sm">
@@ -35,7 +41,7 @@ function Header() {
                     
                     {/* ----- ICONO DE HAMBURGUESA PARA MÓVIL ----- */}
                     {/* 'hiddenFrom="sm"' significa que se esconde en pantallas 'small' y más grandes */}
-                    <Burger opened={opened} onClick={open} hiddenFrom="sm" size="sm" />
+                    <Burger opened={opened} onClick={open} hiddenFrom="sm" size="sm" color='white'/>
             </Container>
         </header>
         {/* ----- EL MENÚ DESPLEGABLE QUE SE ABRE AL HACER CLIC EN LA HAMBURGUESA ----- */}

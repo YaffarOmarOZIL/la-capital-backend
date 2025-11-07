@@ -109,6 +109,29 @@ router.post('/login', [
     }
 });
 
-// Aquí añadiremos el '/login' del cliente en el futuro
+// Este es el "guardia de seguridad" para rutas privadas de clientes.
+const isClientAuthenticated = (req, res, next) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1]; // "Bearer TOKEN"
+
+    if (token == null) {
+        return res.sendStatus(401); // No hay token, no autorizado
+    }
+
+    jwt.verify(token, process.env.JWT_SECRET, (err, decodedPayload) => {
+        if (err || decodedPayload.role !== 'Cliente') {
+            return res.sendStatus(403); // El token no es válido o no es de un cliente
+        }
+        
+        // ¡Importante! Guardamos los datos del cliente en el objeto `req`
+        // para que las siguientes funciones (como dar like) sepan quién es.
+        req.client = decodedPayload; 
+        
+        next(); // El cliente es válido, puede continuar.
+    });
+};
+
+// Exportamos el middleware para poder usarlo en otros archivos (como productRoutes.js)
+router.isClientAuthenticated = isClientAuthenticated; 
 
 module.exports = router;
