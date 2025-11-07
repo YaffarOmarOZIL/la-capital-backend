@@ -222,7 +222,7 @@ function ARViewerPage() {
                     <a-gltf-model
                         src={productData.modelUrl}
                         position="0 0 0"
-                        rotation="0 0 0"
+                        rotation="-90 0 0"
                         scale="0.5 0.5 0.5"
                         animation-mixer
                     />
