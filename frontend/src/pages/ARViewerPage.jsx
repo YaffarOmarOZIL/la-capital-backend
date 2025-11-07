@@ -225,6 +225,7 @@ function ARViewerPage() {
                         rotation="-90 0 0"
                         scale="0.5 0.5 0.5"
                         animation-mixer
+                        gesture-controls="rotationEnabled: true; scaleEnabled: false; translationEnabled: false"
                     />
                 </a-entity>
             </a-scene>
