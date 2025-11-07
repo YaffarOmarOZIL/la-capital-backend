@@ -23,6 +23,7 @@
     "@tiptap/react": "^3.8.0",
     "@tiptap/starter-kit": "^3.8.0",
     "axios": "^1.11.0",
+    "date-fns": "^4.1.0",
     "dayjs": "^1.11.18",
     "jwt-decode": "^4.0.0",
     "onnxruntime-web": "^1.23.0",
