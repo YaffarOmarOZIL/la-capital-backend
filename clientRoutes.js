@@ -115,7 +115,6 @@ router.get('/birthdays', isAuthenticated, async (req, res) => {
         const fin = new Date();
         fin.setDate(hoy.getDate() + 7);
 
-        // --- LA CORRECCIÓN CLAVE ESTÁ AQUÍ ---
         // Se añaden los {} para crear un objeto de parámetros válido.
         const { data, error } = await supabase.rpc('get_upcoming_birthdays', {
             start_day: hoy.getDate(),

@@ -1,5 +1,3 @@
-// --- ARCHIVO CORREGIDO: frontend/src/pages/ProductSpritePage.jsx ---
-
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';

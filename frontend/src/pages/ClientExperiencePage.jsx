@@ -8,15 +8,15 @@ import { useClientAuth } from '../hooks/useClientAuth';
 import { Link } from 'react-scroll';
 import { IconLogout, IconScan, IconHeart, IconHeartFilled, IconMessageCircle2, IconSun, IconMoonStars } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
-import { Link as RouterLink } from 'react-router-dom';
+import { Link as RouterLink, useNavigate  } from 'react-router-dom';
 
 // --- Sub-componente para el botón de Like ---
-function LikeButton({ productId, initialLikes, clientLikes, onLikeToggle }) {
+function LikeButton({ productId, currentLikes, clientLikes, onLikeToggle }) {
     const isLiked = clientLikes.includes(productId);
-    const [likeCount, setLikeCount] = useState(initialLikes);
+    //const [likeCount, setLikeCount] = useState(currentLikes);
 
     const handleClick = () => {
-        setLikeCount(isLiked ? likeCount - 1 : likeCount + 1);
+        //setLikeCount(isLiked ? likeCount - 1 : likeCount + 1);
         onLikeToggle(productId, isLiked);
     };
 
@@ -25,7 +25,7 @@ function LikeButton({ productId, initialLikes, clientLikes, onLikeToggle }) {
             <ActionIcon variant="transparent" color={isLiked ? "red" : "gray"} onClick={handleClick}>
                 {isLiked ? <IconHeartFilled size={20} /> : <IconHeart size={20} />}
             </ActionIcon>
-            <Text size="sm" c="dimmed">{likeCount}</Text>
+            <Text size="sm" c="dimmed">{currentLikes}</Text>
         </Group>
     );
 }
@@ -182,6 +182,17 @@ function ClientExperiencePage() {
     const [clientLikes, setClientLikes] = useState([]);
     const [loading, setLoading] = useState(true);
     const { colorScheme, setColorScheme } = useMantineColorScheme();
+    const navigate = useNavigate();
+
+    // Dentro del cuerpo de tu componente ClientExperiencePage
+const handleNavigateToAR = (productId) => {
+    console.log('[DEBUG] Preparando para entrar a AR. Guardando tiempo de inicio...');
+    // Guardamos la hora actual en localStorage. El .toString() es buena práctica.
+    localStorage.setItem('ar_start_time', Date.now().toString());
+    
+    // Navegamos manualmente usando el hook
+    navigate(`/ar-viewer/${productId}`);
+};
     
     const arProducts = menu.filter(p => p.ActivosDigitales?.url_modelo_3d);
 
@@ -221,6 +232,20 @@ function ClientExperiencePage() {
     }, []);
 
     const handleLikeToggle = async (productId, isCurrentlyLiked) => {
+        setMenu(currentMenu => 
+            currentMenu.map(product => {
+                if (product.id === productId) {
+                    const currentCount = product.ProductLikes[0]?.count || 0;
+                    const newCount = isCurrentlyLiked ? currentCount - 1 : currentCount + 1;
+                    // Devolvemos el producto modificado con el nuevo contador
+                    return { 
+                        ...product, 
+                        ProductLikes: [{ count: newCount }] 
+                    };
+                }
+                return product; // Devolvemos los otros productos sin cambios
+            })
+        );
         const originalLikes = [...clientLikes];
         const newLikes = isCurrentlyLiked 
             ? clientLikes.filter(id => id !== productId)
@@ -403,7 +428,7 @@ function ClientExperiencePage() {
                                                 <Text fw={700}>{product.precio} Bs.</Text>
                                                 <LikeButton 
                                                     productId={product.id} 
-                                                    initialLikes={product.ProductLikes?.[0]?.count || 0} 
+                                                    currentLikes={product.ProductLikes?.[0]?.count || 0} 
                                                     clientLikes={clientLikes} 
                                                     onLikeToggle={handleLikeToggle} 
                                                 />
@@ -438,15 +463,14 @@ function ClientExperiencePage() {
                                                         <Text fw={500}>{product.nombre}</Text>
                                                         <LikeButton 
                                                             productId={product.id} 
-                                                            initialLikes={product.ProductLikes?.[0]?.count || 0} 
+                                                            currentLikes={product.ProductLikes?.[0]?.count || 0}
                                                             clientLikes={clientLikes} 
                                                             onLikeToggle={handleLikeToggle} 
                                                         />
                                                     </Group>
                                                     <Text size="sm" c="dimmed">{product.descripcion}</Text>
                                                     <Button 
-                                                        component={RouterLink} 
-                                                        to={`/ar-viewer/${product.id}`} 
+                                                        onClick={() => handleNavigateToAR(product.id)} // <--- El cambio principal está aquí
                                                         fullWidth 
                                                         mt="md" 
                                                         radius="md" 

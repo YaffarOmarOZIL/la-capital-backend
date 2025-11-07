@@ -74,6 +74,7 @@ function ARViewerPage() {
             const endTime = Date.now();
             let duracion_segundos = Math.round((endTime - startTime) / 1000);
             duracion_segundos = Math.min(duracion_segundos, 3600);
+            console.log(`[FRONTEND DEBUG] Intentando registrar interacción. Duración: ${duracion_segundos}s`);
             
             if (duracion_segundos > 3) {
                 const token = localStorage.getItem('clientAuthToken');
@@ -93,6 +94,60 @@ function ARViewerPage() {
             }
         };
     }, [productId]);
+
+    //3
+    useEffect(() => {
+        if (window.AFRAME) {
+            if (!window.AFRAME.components['drag-rotator']) {
+            window.AFRAME.registerComponent('drag-rotator', {
+                schema: {
+                    sensitivity: { type: 'number', default: 0.01 }
+                },
+                init: function () {
+                    this.el.sceneEl.addEventListener('mousedown', this.onMouseDown.bind(this));
+                    this.el.sceneEl.addEventListener('touchstart', this.onMouseDown.bind(this));
+                },
+                onMouseDown: function (e) {
+                    this.dragging = true;
+                    // Compatible con mouse y touch
+                    this.lastClientX = e.type === 'touchstart' ? e.touches[0].clientX : e.clientX;
+
+                    // Escuchar move y up en todo el documento para no perder el drag
+                    document.addEventListener('mousemove', this.onMouseMove.bind(this));
+                    document.addEventListener('touchmove', this.onMouseMove.bind(this));
+                    document.addEventListener('mouseup', this.onMouseUp.bind(this));
+                    document.addEventListener('touchend', this.onMouseUp.bind(this));
+                },
+                onMouseMove: function (e) {
+                    if (!this.dragging) return;
+                    const clientX = e.type === 'touchmove' ? e.touches[0].clientX : e.clientX;
+                    const deltaX = clientX - this.lastClientX;
+                    this.lastClientX = clientX;
+
+                    // Rotar el objeto 3D del modelo
+                    this.el.object3D.rotation.y += deltaX * this.data.sensitivity;
+                },
+                onMouseUp: function () {
+                    this.dragging = false;
+                    // Limpiar listeners para evitar que se sigan ejecutando
+                    document.removeEventListener('mousemove', this.onMouseMove.bind(this));
+                    document.removeEventListener('touchmove', this.onMouseMove.bind(this));
+                    document.removeEventListener('mouseup', this.onMouseUp.bind(this));
+                    document.removeEventListener('touchend', this.onMouseUp.bind(this));
+                },
+                remove: function() {
+                    // Limpieza final por si el componente se destruye
+                    this.el.sceneEl.removeEventListener('mousedown', this.onMouseDown.bind(this));
+                    this.el.sceneEl.removeEventListener('touchstart', this.onMouseDown.bind(this));
+                }
+            });
+        }
+        }
+    }, []);
+
+
+
+
 
     const handleLike = async () => {
         const token = localStorage.getItem('clientAuthToken');
@@ -225,7 +280,7 @@ function ARViewerPage() {
                         rotation="-90 0 0"
                         scale="0.5 0.5 0.5"
                         animation-mixer
-                        gesture-controls="rotationEnabled: true; scaleEnabled: false; translationEnabled: false"
+                        drag-rotator="sensitivity: 0.02"
                     />
                 </a-entity>
             </a-scene>

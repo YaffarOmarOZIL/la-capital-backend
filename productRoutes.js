@@ -3,7 +3,31 @@ const router = express.Router();
 const supabase = require('./supabaseClient');
 const { isAuthenticated, isAdmin } = require('./authMiddleware');
 const { body, validationResult } = require('express-validator');
-const { isClientAuthenticated } = require('./clientAuthRoutes');
+//const { isClientAuthenticated } = require('./clientAuthRoutes');
+const jwt = require('jsonwebtoken');
+
+//Autenticacion
+const isClientAuthenticated = (req, res, next) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1]; // "Bearer TOKEN"
+
+    if (token == null) {
+        return res.sendStatus(401); // No hay token, no autorizado
+    }
+
+    // Usamos el mismo secreto, que ahora sí estará disponible
+    jwt.verify(token, process.env.JWT_SECRET, (err, decodedPayload) => {
+        if (err || decodedPayload.role !== 'Cliente') {
+            return res.sendStatus(403); // El token no es válido o no es de un cliente
+        }
+        
+        // Guardamos los datos del cliente para que las rutas los usen
+        req.client = decodedPayload; 
+        
+        next(); // El cliente es válido, puede continuar.
+    });
+};
+
 
 // --- RUTAS PÚBLICAS (Para los clientes) ---
 
@@ -150,6 +174,21 @@ router.get('/public/:id', async (req, res) => {
     } catch (error) { res.status(500).json({ message: "Error interno del servidor." }); }
 });
 
+// OBTIENE LOS LIKES DE UN CLIENTE LOGUEADO (privado)
+// Necesita el middleware de autenticación de clientes
+router.get('/likes', isClientAuthenticated, async (req, res) => {
+    try {
+        const clientId = req.client.id; // Asumimos que el middleware pone los datos del cliente en req.client
+        const { data, error } = await supabase
+            .from('ProductLikes')
+            .select('id_producto')
+            .eq('id_cliente', clientId);
+        if (error) throw error;
+        // Devuelve un array simple de IDs de producto [5, 8, 12]
+        res.json(data.map(like => like.id_producto));
+    } catch (err) { res.status(500).json({ message: 'Error al obtener tus likes.' }); }
+});
+
 // --- 1. LEER TODOS los productos ---
 // Cualquiera que esté logueado puede ver la lista.
 router.get('/', isAuthenticated, async (req, res) => {
@@ -294,47 +333,44 @@ router.delete('/:id', isAdmin, async (req, res) => {
 
 // Trae todos los productos activos con su conteo de likes y comentarios.
 
-
-// OBTIENE LOS LIKES DE UN CLIENTE LOGUEADO (privado)
-// Necesita el middleware de autenticación de clientes
-router.get('/likes', isClientAuthenticated, async (req, res) => {
-    try {
-        const clientId = req.client.id; // Asumimos que el middleware pone los datos del cliente en req.client
-        const { data, error } = await supabase
-            .from('ProductLikes')
-            .select('id_producto')
-            .eq('id_cliente', clientId);
-        if (error) throw error;
-        // Devuelve un array simple de IDs de producto [5, 8, 12]
-        res.json(data.map(like => like.id_producto));
-    } catch (err) { res.status(500).json({ message: 'Error al obtener tus likes.' }); }
-});
-
 // DAR/QUITAR LIKE A UN PRODUCTO (privado)
 router.post('/:id/like', isClientAuthenticated, async (req, res) => {
     try {
         const clientId = req.client.id;
         const productId = req.params.id;
 
-        // Intentamos borrar el like primero
-        const { error: deleteError } = await supabase
+        if (!clientId || !productId) {
+            return res.status(400).json({ message: "Faltan datos para procesar el like." });
+        }
+        
+        // --- LA ÚNICA LÓGICA QUE NECESITAMOS ---
+
+        // 1. Intentamos borrar el like y le pedimos a Supabase que nos diga cuántas filas borró.
+        const { count, error: deleteError } = await supabase
             .from('ProductLikes')
-            .delete()
+            .delete({ count: 'exact' }) // La clave: Pedimos el conteo de filas afectadas
             .match({ id_cliente: clientId, id_producto: productId });
 
-        // Si no se borró nada (porque no existía), lo creamos.
-        if (!deleteError) {
-             const { count } = await supabase.from('ProductLikes').select('*', { count: 'exact' }).match({ id_cliente: clientId, id_producto: productId });
-             if(count === 0) { // Check if deletion was successful
-                const { error: insertError } = await supabase
-                    .from('ProductLikes')
-                    .insert({ id_cliente: clientId, id_producto: productId });
-                if (insertError) throw insertError;
-                return res.json({ status: 'liked' });
-             }
+        if (deleteError) throw deleteError;
+
+        // 2. Ahora, simplemente revisamos si se borró algo.
+        if (count > 0) {
+            // Si 'count' es 1, significa que encontró un like y lo borró. Fue un "unlike".
+            return res.status(200).json({ status: 'unliked' });
+        } else {
+            // Si 'count' es 0, no encontró nada para borrar. Era un "like" y lo creamos.
+            const { error: insertError } = await supabase
+                .from('ProductLikes')
+                .insert({ id_cliente: clientId, id_producto: productId });
+            
+            if (insertError) throw insertError;
+
+            return res.status(201).json({ status: 'liked' });
         }
-        res.json({ status: 'unliked' });
-    } catch (err) { res.status(500).json({ message: 'Error al procesar el like.' }); }
+    } catch (err) { 
+        console.error("Error al procesar el like:", err.message);
+        res.status(500).json({ message: 'Error al procesar el like.' }); 
+    }
 });
 
 // PUBLICAR UN COMENTARIO (privado)
@@ -374,75 +410,90 @@ router.post('/:id/comment', isClientAuthenticated, async (req, res) => {
 });
 
 // REGISTRAR TIEMPO DE INTERACCIÓN EN AR (privado/público)
+// RUTA DE DEBUG PARA REGISTRAR INTERACCIÓN
 router.post('/interaction', async (req, res) => {
-    let { id_producto, duracion_segundos } = req.body;
+    console.log('\n\n========================================');
+    console.log('⚡️ INICIO DE REQUEST A /api/products/interaction ⚡️');
     
-    // Obtener ID del cliente del token si existe
+    // --- BANDERA 1: ¿ESTÁN LLEGANDO LOS HEADERS? ---
     const authHeader = req.headers['authorization'];
+    console.log('--- BANDERA 1: Contenido de req.headers["authorization"] ---');
+    console.log(authHeader);
+
     const token = authHeader && authHeader.split(' ')[1];
+    
+    // --- BANDERA 2: ¿SE AISLÓ BIEN EL TOKEN? ---
+    console.log('\n--- BANDERA 2: Token aislado ---');
+    console.log(token);
+    
     let clientId = null;
-    let sessionId = null;
 
     if (token) {
+        console.log('\n--- Se detectó un token, intentando verificar... ---');
         try {
             const jwt = require('jsonwebtoken');
-            const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+            // --- BANDERA 3: ¿ESTAMOS USANDO EL SECRETO CORRECTO? ---
+            const clientSecret = process.env.JWT_CLIENT_SECRET;
+            console.log('--- BANDERA 3: Secreto del cliente que se usará para verificar ---');
+            console.log(clientSecret ? `SECRET OBTENIDO (longitud: ${clientSecret.length})` : '¡¡¡ERROR: SECRETO NO ENCONTRADO!!!');
+            
+            const decoded = jwt.verify(token, clientSecret);
+            
+            // --- BANDERA 4: ¿QUÉ HAY DENTRO DEL TOKEN DECODIFICADO? ---
+            console.log('\n--- BANDERA 4: ¡Token verificado! Contenido decodificado ---');
+            console.log(decoded);
+            
             if (decoded.role === 'Cliente') {
                 clientId = decoded.id;
+                console.log(`✅ Rol 'Cliente' confirmado. ID de cliente establecido en: ${clientId}`);
+            } else {
+                console.log(`❌ El rol es '${decoded.role}', no 'Cliente'. clientId sigue siendo null.`);
             }
+
         } catch (err) {
-            console.log('Token inválido o expirado');
+            // --- BANDERA 5: ¿QUÉ ERROR EXACTO ESTÁ DANDO JWT.VERIFY? ---
+            console.error('\n--- BANDERA 5: ¡¡¡FALLÓ LA VERIFICACIÓN DEL TOKEN!!! ---');
+            console.error('El error específico es:', err.name);
+            console.error('Mensaje del error:', err.message);
         }
+    } else {
+        console.log('\n--- No se encontró token. Se procesará como usuario anónimo. ---');
     }
 
-    // Si no hay cliente autenticado, usar session ID temporal
+    // El resto de la lógica sigue igual...
+    let { id_producto, duracion_segundos } = req.body;
+    let sessionId = null;
+    
     if (!clientId) {
-        sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        sessionId = `session_${Date.now()}`;
+        console.log(`\n--- No hay clientId, se usará session temporal: ${sessionId} ---`);
+    } else {
+        console.log(`\n--- Hay clientId (${clientId}), no se usará session temporal. ---`);
     }
 
-    // Limitar duración
-    duracion_segundos = Math.min(duracion_segundos, 3600);
-
+    // Lógica para guardar en Supabase (sin cambios)
     try {
-        if (clientId) {
-            // Para usuarios autenticados: actualizar o crear
-            const { data: existing } = await supabase
-                .from('InteraccionesAR')
-                .select('id, duracion_segundos')
-                .eq('id_cliente', clientId)
-                .eq('id_producto', id_producto)
-                .maybeSingle();
+        console.log('--- Intentando guardar en Supabase... ---');
+        console.log({ id_producto, duracion_segundos, id_cliente: clientId, session_id_temporal: sessionId });
+        // Aquí iría tu lógica de `supabase.from('InteraccionesAR').insert(...)` etc.
+        // Por ahora, solo responderemos para confirmar los datos.
 
-            if (existing) {
-                // Actualizar sumando el tiempo
-                const { error } = await supabase
-                    .from('InteraccionesAR')
-                    .update({ 
-                        duracion_segundos: existing.duracion_segundos + duracion_segundos,
-                        created_at: new Date().toISOString() // Actualizar fecha
-                    })
-                    .eq('id', existing.id);
+        console.log('========================================\n\n');
+        return res.status(200).json({ 
+            message: 'Debug Exitoso', 
+            datosRecibidos: {
+                id_producto,
+                duracion_segundos,
+                clientIdDetectado: clientId,
+                sessionIdGenerado: sessionId
+            } 
+        });
 
-                if (error) throw error;
-                return res.status(200).json({ message: 'Interacción actualizada' });
-            }
-        }
-
-        // Crear nueva interacción (para nuevos usuarios o sesiones anónimas)
-        const { error } = await supabase
-            .from('InteraccionesAR')
-            .insert({ 
-                id_producto, 
-                duracion_segundos, 
-                id_cliente: clientId,
-                session_id_temporal: sessionId 
-            });
-
-        if (error) throw error;
-        res.status(201).json({ message: 'Interacción registrada' });
-    } catch (err) { 
-        console.error('Error al registrar interacción:', err);
-        res.status(500).json({ message: 'Error al registrar la interacción.' });
+    } catch (dbError) {
+        console.error('--- ERROR AL INTERACTUAR CON SUPABASE ---', dbError);
+        console.log('========================================\n\n');
+        return res.status(500).json({ message: 'Error en la base de datos' });
     }
 });
 
