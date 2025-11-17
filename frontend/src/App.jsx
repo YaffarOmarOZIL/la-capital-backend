@@ -25,6 +25,8 @@ import ClientPrivateRoute from './components/ClientPrivateRoute';
 import ClientExperiencePage from './pages/ClientExperiencePage';
 import MarketingCampaignsPage from './pages/MarketingCampaignsPage';
 import ClientAnalysisPage from './pages/ClientAnalysisPage';
+import RecommendationsPage from './pages/RecommendationsPage';
+import PredictiveAnalyticsPage from './pages/PredictiveAnalyticsPage';
 
 function App() {
   return (
@@ -70,6 +72,8 @@ function App() {
           <Route path="products/sprites/:id" element={<ProductSpritePage />} /> 
           <Route path="campaigns" element={<MarketingCampaignsPage />} />
           <Route path="analysis" element={<ClientAnalysisPage />} />
+          <Route path="recommendations" element={<RecommendationsPage />} />
+          <Route path="predictive" element={<PredictiveAnalyticsPage />} />
         </Route>
         
       </Routes>

@@ -3,7 +3,7 @@ import { Outlet, useNavigate, NavLink as RouterNavLink } from 'react-router-dom'
 import { AppShell, ScrollArea, Group, Image, ActionIcon, Menu, Avatar, Text, useMantineColorScheme, UnstyledButton, Burger, Stack, NavLink as MantineNavLink } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 //iconos
-import { IconSend, IconUserPlus, IconUsers, IconSun, IconMoonStars, IconLogout, IconUser, IconSettings, IconClipboardList, IconLayoutDashboard, IconAddressBook, IconChartBar } from '@tabler/icons-react';
+import { IconBrain, IconSend, IconUserPlus, IconUsers, IconSun, IconActivity, IconMoonStars, IconLogout, IconUser, IconSettings, IconClipboardList, IconLayoutDashboard, IconAddressBook, IconChartBar } from '@tabler/icons-react';
 import { jwtDecode } from 'jwt-decode';
 import { useEffect, useState } from 'react';
 import logo from '../assets/logo-la-capital-cuadrado.png';
@@ -179,6 +179,18 @@ function AdminLayout() {
                             label="Campañas de Marketing"
                             icon={<IconSend size={16} />}
                             onClick={close} // 'close' es la función que cierra el menú, igual que en los otros links
+                        />
+                        <MenuLink 
+                            to="/admin/recommendations"
+                            label="Recomendaciones IA"
+                            icon={<IconBrain size={16} />}
+                            onClick={close}
+                        />
+                        <MenuLink 
+                            to="/admin/predictive"
+                            label="Análisis Predictivo"
+                            icon={<IconActivity size={16} />}
+                            onClick={close}
                         />
                         {/* --- GESTIÓN DE PERSONAL --- */}
                         <Text size="xs" tt="uppercase" c="dimmed" fw={700} mt="md">Personal</Text>

@@ -20,6 +20,8 @@ const assetRoutes = require('./assetRoutes');
 const clientAuthRoutes = require('./clientAuthRoutes');
 const campaignRoutes = require('./campaignRoutes');
 const analyticsRoutes = require('./analyticsRoutes');
+const recommendationRoutes = require('./recommendationRoutes');
+const predictiveRoutes = require('./predictiveAnalyticsRoutes');
 
 
 app.get('/', (req, res) => {
@@ -36,6 +38,8 @@ app.use('/api', assetRoutes);
 app.use('/api/client-auth', clientAuthRoutes);
 app.use('/api/campaigns', campaignRoutes);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/recommendations', recommendationRoutes);
+app.use('/api/predictive', predictiveRoutes);
 
 
 app.listen(PORT, () => {
